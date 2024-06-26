@@ -3,8 +3,6 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "./navbar";
 import TopNavbar from "./topnavbar";
 import Footer from "./footer";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 function EmployeeProfile() {
   const { employeeId } = useParams();

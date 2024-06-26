@@ -55,6 +55,8 @@ import { useState } from "react";
                      <img src="/img/hris2.png" alt="companyLogo" className="logo2" />
                  </div>
              </a>
+             {role !== "Employee" && (
+        <>
              {/* Divider */}
              <hr className="sidebar-divider my-0" />
              {/* Nav Item - Dashboard */}
@@ -64,23 +66,47 @@ import { useState } from "react";
                         <span>Dashboard</span>
                   </Link>
              </li>
-             {/* Divider */}
-             <hr className="sidebar-divider" />
+              {/* Divider */}
+              <hr className="sidebar-divider" />
+      {/* Conditionally render Employee DB section */}
+      {/* {RoleType !== "Employee" && (
+        <> */}
+          {/* Heading */}
+          <div className="sidebar-heading">
+            Employee DB
+          </div>
+          {/* Nav Item - New Hire Upload */}
+          <li className="nav-item">
+            <Link className="nav-link" to={{ pathname: "/newHireUpload" }} state={data}>
+              <i className="fas fa-fw fa-upload"></i>
+              <span>New Hire Upload</span>
+            </Link>
+          </li>
+          {/* Nav Item - Reports */}
+          <li className="nav-item">
+            <Link className="nav-link" to={{ pathname: "/reports" }} state={data}>
+              <i className="fas fa-fw fa-chart-bar"></i>
+              <span>Report</span>
+            </Link>
+          </li>
+        </>
+      )}
+      {/* Divider */}
+      <hr className="sidebar-divider" />
              {/* Heading */}
              <div className="sidebar-heading">
-                 MAIN
+                 iASSIST 2.0
              </div>
              {/* Nav Item - New Hire Upload */}
              
-             { role === 'HRAdmin' &&  
+             {/* { role === 'HRAdmin' &&  
              <li className="nav-item"> 
                  <Link className="nav-link" to={{ pathname: "/newHireUpload"}} state={data}>
                   <i className="fas fa-fw fa-upload"></i>
                   <span>New Hire Upload</span>
                 </Link>
-                 {/* </a> */}
              </li>
-             }
+             } */}
              <li className="nav-item"> 
                  <Link className="nav-link" to={{ pathname: "/submissions"}} state={data}>
                   <i className="fas fa-fw fa-book"></i>
@@ -206,14 +232,14 @@ import { useState } from "react";
                     </li> 
                 }
                 {/* Nav Item - Reports*/}
-                { role === 'HRAdmin' &&  
+                {/* { role === 'HRAdmin' &&  
                 <li className="nav-item">
                 <Link className="nav-link" to={{ pathname: "/reports"}} state={data} >
                    <i className="fas fa-fw fa-chart-bar"></i>
                    <span>Report</span>
                  </Link>
                 </li>
-                }
+                } */}
             
              {/* Sidebar Toggler (Sidebar) */}
              <br/>

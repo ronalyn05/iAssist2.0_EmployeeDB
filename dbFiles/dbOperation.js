@@ -515,6 +515,156 @@ const getAllNewHireEmployees = async () => {
     throw error;
   }
   };
+
+// Retrieve all employees from the database
+const getAllEmployees = async () => {
+  try {
+    let pool = await sql.connect(config);
+    let result = await pool.request().query(`
+    SELECT 
+    PD.EmployeeId,
+    UA.Role,
+    PD.FirstName,
+    PD.LastName,
+    PD.Birthdate,
+    PD.MiddleName, 
+    PD.MaidenName,
+    PD.EmployeeName,
+    EI.*,
+    ADDRESS.CompleteAddress AS EmContactCompleteAddress,
+    ADDRESS.HouseNumber AS EmContactHouseNo,
+    ADDRESS.Barangay AS EmContactBarangay,
+    ADDRESS.CityMunicipality AS EmContactCityMunicipality,
+    ADDRESS.Province AS EmContactProvince,
+    ADDRESS.Region AS EmContactRegion,
+    ADDRESS.Country AS EmContactCountry,
+    ADDRESS.ZipCode AS EmContactZipcode,
+    ADDRESS.LandMark AS EmContactLandMark,
+    ADDRESS.IsPermanent AS Is_Permanent,
+    ADDRESS.IsEmergency AS Is_Emergency,
+    CONTACT.ContactNumber AS EmContactPhoneNumber,
+    EDUC.*,
+    EC.*,    
+    SHFT.*,
+    COMPBEN.*,
+    DEPDNT.*,   
+    DU.DUCode,
+    DU.DUName AS DUName,
+    DEPT.DepartmentName,
+    PROD.*
+FROM (
+    SELECT DISTINCT EmployeeId FROM EmpPersonalDetails
+) AS DistinctEmployeeIds
+INNER JOIN EmpPersonalDetails AS PD ON DistinctEmployeeIds.EmployeeId = PD.EmployeeId
+INNER JOIN EmployeeInfo AS EI ON PD.EmployeeId = EI.EmployeeId
+INNER JOIN Address AS ADDRESS ON PD.EmployeeId = ADDRESS.EmployeeId
+INNER JOIN Contact AS CONTACT ON PD.EmployeeId = CONTACT.EmployeeId
+INNER JOIN Education AS EDUC ON PD.EmployeeId = EDUC.EmployeeId
+INNER JOIN UserAccount AS UA ON PD.EmployeeId = UA.EmployeeId
+LEFT JOIN EmergencyContactNumber AS EC ON PD.EmployeeId = EC.EmployeeId
+LEFT JOIN DeliveryUnit AS DU ON PD.EmployeeId = DU.EmployeeId
+LEFT JOIN Department AS DEPT ON PD.EmployeeId = DEPT.EmployeeId
+LEFT JOIN Shift AS SHFT ON PD.EmployeeId = SHFT.EmployeeId
+LEFT JOIN CompensationBenefits AS COMPBEN ON PD.EmployeeId = COMPBEN.EmployeeId
+LEFT JOIN Dependent AS DEPDNT ON PD.EmployeeId = DEPDNT.EmployeeId
+LEFT JOIN Product AS PROD ON PD.EmployeeId = PROD.EmployeeId;
+    `);
+
+     const employees = result.recordset.reduce((acc, employee) => {
+      if (employee.EmployeeId && !acc[employee.EmployeeId]) {
+          acc[employee.EmployeeId] = employee;
+      }
+      return acc;
+  }, {});
+
+  return Object.values(employees);
+
+  } catch (error) {
+    console.error("Error fetching all employees:", error);
+    throw error;
+  }
+};
+
+// Retrieve new hire employees for the current month
+const getAllCountNewHireEmployees = async () => {
+  try {
+    let pool = await sql.connect(config);
+    let result = await pool.request()
+      .query(`
+        SELECT 
+        EP.EmployeeId,
+        EP.EmployeeName,
+        EI.Facility,
+        EI.EmployeeStatus,
+        EI.EmploymentStatus,
+        EI.EmployeeRole,
+        EI.DateHired,
+        EI.Position,
+        EI.Level,
+        EI.WorkArrangement,
+        EI.WorkWeekType,
+        PR.ProjectCode,
+        Dept.DepartmentName,
+        DU.DUName,
+        SHFT.ShiftCode,
+        SHFT.ShiftName,
+        SHFT.ShiftType
+        FROM EmpPersonalDetails AS EP
+        INNER JOIN EmployeeInfo AS EI ON EP.EmployeeId = EI.EmployeeId
+        LEFT JOIN Project AS PR ON EP.EmployeeId = PR.EmployeeId
+        LEFT JOIN DeliveryUnit AS DU ON EP.EmployeeId = DU.EmployeeId
+        LEFT JOIN Department AS Dept ON EP.EmployeeId = Dept.EmployeeId
+        LEFT JOIN Shift AS SHFT ON EP.EmployeeId = SHFT.EmployeeId
+        WHERE TRY_CAST(EI.DateHired AS DATE) >= CAST(DATEADD(month, DATEDIFF(month, 0, GETDATE()), 0) AS DATE)
+          AND TRY_CAST(EI.DateHired AS DATE) < CAST(DATEADD(month, DATEDIFF(month, 0, GETDATE()) + 1, 0) AS DATE);
+      `);
+    return result.recordset;
+  } catch (error) {
+    console.error("Error fetching new hire employees:", error);
+    throw error;
+  }
+};
+// Retrieve new hire count by month for the current year
+const getMonthlyNewHireCount = async () => {
+  try {
+    let pool = await sql.connect(config);
+    let result = await pool.request()
+      .query(`
+        SELECT
+          DATEPART(month, TRY_CAST(DateHired AS DATE)) AS Month,
+          COUNT(*) AS NewHireCount
+        FROM EmployeeInfo
+        WHERE DATEPART(year, TRY_CAST(DateHired AS DATE)) = DATEPART(year, GETDATE())
+        GROUP BY DATEPART(month, TRY_CAST(DateHired AS DATE))
+        ORDER BY Month;
+      `);
+    return result.recordset;
+  } catch (error) {
+    console.error("Error fetching monthly new hire count:", error);
+    throw error;
+  }
+};
+
+// Retrieve new hire count by year
+const getYearlyNewHireCount = async () => {
+  try {
+    let pool = await sql.connect(config);
+    let result = await pool.request()
+      .query(`
+        SELECT
+          DATEPART(year, TRY_CAST(DateHired AS DATE)) AS Year,
+          COUNT(*) AS NewHireCount
+        FROM EmployeeInfo
+        GROUP BY DATEPART(year, TRY_CAST(DateHired AS DATE))
+        ORDER BY Year;
+      `);
+    return result.recordset;
+  } catch (error) {
+    console.error("Error fetching yearly new hire count:", error);
+    throw error;
+  }
+};
+
 // Retrieve all users account from the database
 const getAllUserAccount = async () => {
   try {
@@ -583,42 +733,6 @@ const getEmployeeById = async (employeeId) => {
     throw error;
   }
 }
-// // Update password query 
-// const updateEmployeePassword = async (employeeId, hashedPassword) => {
-//   try {
-//     let pool = await sql.connect(config);
-//     await pool
-//       .request()
-//       .input("EmployeeId", sql.VarChar, employeeId)
-//       .input("Password", sql.VarChar, hashedPassword) // Store hashed password
-//       .query(`
-//         UPDATE UserAccount
-//         SET Password = @Password
-//         WHERE EmployeeId = @EmployeeId;
-//       `);
-//   } catch (error) {
-//     console.error("Error updating password:", error);
-//     throw error;
-//   }
-// }
-// // Update role type query 
-// const updateEmployeeRole = async (employeeId, role) => {
-//   try {
-//     let pool = await sql.connect(config);
-//     await pool
-//       .request()
-//       .input("EmployeeId", sql.VarChar, employeeId)
-//       .input("Role", sql.VarChar, role)
-//       .query(`
-//         UPDATE UserAccount
-//         SET Role = @Role
-//         WHERE EmployeeId = @EmployeeId;
-//       `);
-//   } catch (error) {
-//     console.error("Error updating role:", error);
-//     throw error;
-//   }
-// }
 
 //update employee personal details  by id
 const updateEmployeeById = async (employeeId, updatedEmployeeData) => {
@@ -856,12 +970,13 @@ const addToHistory = async (historyData) => {
           .input('FieldName', sql.VarChar(100), historyData.FieldName)
           .input('OldValue', sql.VarChar(100), historyData.OldValue)
           .input('NewValue', sql.VarChar(100), historyData.NewValue)
+          .input('Remarks', sql.VarChar(1000), historyData.Remarks)
           .input('DateCreated', sql.DateTime, historyData.DateCreated)
           .input('UpdatedBy', sql.VarChar(100), historyData.UpdatedBy)
           .input('EmployeeId', sql.VarChar(100), historyData.EmployeeId)
           .query(`
-              INSERT INTO History (EmployeeName, Action, FieldName, OldValue, NewValue, DateCreated, UpdatedBy, EmployeeId)
-              VALUES (@EmployeeName, @Action, @FieldName, @OldValue, @NewValue, @DateCreated, @UpdatedBy, @EmployeeId)
+              INSERT INTO History (EmployeeName, Action, FieldName, OldValue, NewValue, Remarks, DateCreated, UpdatedBy, EmployeeId)
+              VALUES (@EmployeeName, @Action, @FieldName, @OldValue, @NewValue, @Remarks, @DateCreated, @UpdatedBy, @EmployeeId)
           `);
 
       return result;
@@ -1202,6 +1317,7 @@ const updateProductById = async (employeeId, updatedEmployeeData) => {
     throw error;
   }
 };
+//function that handles in updating the emergency contact by employee id
 const updateEmergencyContactById = async (employeeId, updatedEmployeeData) => {
   try {
     let pool = await sql.connect(config);
@@ -1518,7 +1634,7 @@ const updatePersonalDetails = async (employeeId, updatedDetails) => {
     throw err;
   }
 };
-
+//fucntion that handles in deleting the data from all table
 const deleteAllFromTable = async (transaction, tableName) => {
   const query = `DELETE FROM ${tableName}`;
   await transaction.request().query(query);
@@ -1767,6 +1883,73 @@ const getHistoryByEmployeeId = async (employeeId) => {
     throw error;
   }
 };
+//function that handles in fetching all the employee details to download as excel file
+const getAllEmployeesToDownload = async () => {
+  try {
+      let pool = await sql.connect(config);
+
+      let result = await pool.request().query(`
+          SELECT 
+              e.EmployeeId,
+              e.FirstName,
+              e.MiddleName,
+              e.LastName,
+              e.EmailAddress,
+              e.Birthdate,
+              e.Gender,
+              e.MaritalStatus,
+              e.SSS,
+              e.PHIC,
+              e.HDMF,
+              e.TIN,
+              e.DateHired,
+              e.EmploymentStatus,
+              e.EmployeeStatus,
+              e.Rate,
+              e.ManagerID,
+              e.PMPICID,
+              e.DUHID,
+              e.IsManager,
+              e.IsPMPIC,
+              e.IsIndividualContributor,
+              e.IsActive,
+              e.Position,
+              e.IsDUHead,
+              e.Facility,
+              e.EmployeeRole,
+              e.EmployeeCategory,
+              C.ContactNumber AS EmContactPhoneNumber,
+        A.CompleteAddress AS EmContactCompleteAddress,
+        A.HouseNumber AS EmContactHouseNo,
+        A.Barangay AS EmContactBarangay,
+        A.CityMunicipality AS EmContactCityMunicipality,
+        A.Province AS EmContactProvince,
+        A.Region AS EmContactRegion,
+        A.Country AS EmContactCountry,
+        A.ZipCode AS EmContactZipcode,
+        A.LandMark AS EmContactLandMark,
+        A.IsPermanent AS Is_Permanent,
+        A.IsEmergency AS Is_Emergency
+          FROM EmpPersonalDetails e
+          LEFT JOIN EmployeeInfo ep ON e.EmployeeId = ep.EmployeeId
+          LEFT JOIN Contact c ON e.EmployeeId = c.EmployeeId
+          LEFT JOIN Address a ON e.EmployeeId = a.EmployeeId
+          LEFT JOIN Education edu ON e.EmployeeId = edu.EmployeeId
+          LEFT JOIN EmergencyContactNumber ec ON e.EmployeeId = ec.EmployeeId
+          LEFT JOIN DeliveryUnit du ON e.EmployeeId = du.EmployeeId
+          LEFT JOIN Project p ON e.EmployeeId = p.EmployeeId
+          LEFT JOIN Shift s ON e.EmployeeId = s.EmployeeId
+          LEFT JOIN Department d ON e.EmployeeId = d.EmployeeId
+          LEFT JOIN Product pr ON e.EmployeeId = pr.EmployeeId
+          LEFT JOIN Dependent dep ON e.EmployeeId = dep.EmployeeId
+      `);
+
+      return result.recordset;
+  } catch (error) {
+      console.error('Error fetching employees:', error);
+      throw new Error('Failed to fetch employees.');
+  }
+};
 
 module.exports = {
   updateUserPassword,
@@ -1805,12 +1988,14 @@ module.exports = {
   insertCompBen,
   getCompBenByEmployeeId,
   updateCompBenById,
-  // updateEmployeePassword,
-  // updateEmployeeRole,
   addToHistory,
   getEmployeeInfoById,
   checkEmployeeAndEmail,
   resetPassword,
-  getHistoryByEmployeeId
-  // getExistingEmployeeIds
+  getHistoryByEmployeeId,
+  getAllCountNewHireEmployees,
+  getMonthlyNewHireCount,
+  getYearlyNewHireCount,
+  getAllEmployees,
+  getAllEmployeesToDownload
 };

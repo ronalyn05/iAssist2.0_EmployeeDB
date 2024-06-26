@@ -267,9 +267,7 @@ app.post('/getnotificationsforviewall',  upload.single('EmpId'), async (req, res
 
 
 
-//
-
-
+//RONALYN - EMPLOYEE DB STARTS HERE
 // Generate a random string
 const generateRandomString = (length) => {
   return crypto.randomBytes(Math.ceil(length / 2))
@@ -448,59 +446,9 @@ app.post('/login', async (req, res) => {
   }
 });
 
-  // app.post('/login', async (req, res) => {
-  //   const { EmployeeId, Password } = req.body;
-  //   console.log('Login attempt:', { EmployeeId, Password });
-  
-  //   try {
-  //     // Check for static credentials
-  //     if (EmployeeId === STATIC_EMPLOYEE_ID) {
-  //       if (Password === ADMIN_PASSWORD) {
-  //         res.status(200).json({
-  //           EmployeeId: STATIC_EMPLOYEE_ID,
-  //           Role: 'HRAdmin'
-  //         });
-  //         return;
-  //       } else if (Password === EMPLOYEE_PASSWORD) {
-  //         res.status(200).json({
-  //           EmployeeId: STATIC_EMPLOYEE_ID,
-  //           Role: 'Employee'
-  //         });
-  //         return;
-  //       } else {
-  //         res.status(401).json({ error: 'Incorrect employee id or password' });
-  //         return;
-  //       }
-  //     }
-  
-  //     // Retrieve user from the database based on EmployeeId
-  //     const users = await dbOperation.getEmployees(EmployeeId);
-  //     if (users.length > 0) {
-  //       const user = users[0];
-  //       console.log('User found:', user);
-  
-  //       // Compare provided password with the hashed password stored in the database
-  //       const isValidPassword = await bcrypt.compare(Password, user.Password);
-  //       console.log('Password valid:', isValidPassword);
-  
-  //       if (isValidPassword) {
-  //         res.status(200).json(user);
-  //       } else {
-  //         console.log('Password mismatch:', { provided: Password, stored: user.Password });
-  //        // alert('Password mismatch. Please check your inputted password!');
-  //         res.status(401).json({ error: 'Incorrect employee id or password' });
-  //       }
-  //     } else {
-  //       res.status(401).json({ error: 'User not found or invalid credentials. Register your account!' });
-  //     }
-  //   } catch (error) {
-  //     console.error('Login Failed:', error);
-  //     res.status(500).json({ error: 'Internal Server Error' });
-  //   }
-  // });
   // Change password endpoint
   app.post('/changePassword', async (req, res) => {
-    const { EmployeeId, CurrentPassword, NewPassword } = req.body;
+    const { EmployeeId, NewPassword } = req.body;
   
     try {
       // Retrieve user from the database based on EmployeeId
@@ -511,11 +459,11 @@ app.post('/login', async (req, res) => {
       }
   
       // Compare provided current password with the hashed password stored in the database
-      const isValidPassword = await bcrypt.compare(CurrentPassword, user.Password);
-      if (!isValidPassword) {
-        res.status(401).json({ error: 'Invalid current password' });
-        return;
-      }
+      // const isValidPassword = await bcrypt.compare(CurrentPassword, user.Password);
+      // if (!isValidPassword) {
+      //   res.status(401).json({ error: 'Invalid current password' });
+      //   return;
+      // }
   
       // Hash the new password before storing it in the database
       const hashedNewPassword = await bcrypt.hash(NewPassword, 10);
@@ -531,9 +479,9 @@ app.post('/login', async (req, res) => {
   });
   
 // Multer storage configuration
-// const upload = multer();
+const uploadMult = multer();
 // API endpoint to update profile photo
-app.post('/api/updatePhoto/:employeeId', upload.single('profilePhoto'), async (req, res) => {
+app.post('/api/updatePhoto/:employeeId', uploadMult.single('profilePhoto'), async (req, res) => {
   try {
     const employeeId = req.params.employeeId;
     let profilePhoto = '/img/user.png'; // Set default profile photo path
@@ -585,7 +533,7 @@ app.get('/api/getUserData/:employeeId', async (req, res) => {
 });
 
   // POST endpoint to handle Excel data upload
-  app.post('/upload', async (req, res) => {
+  app.post('/uploadNewHire', async (req, res) => {
     const excelData = req.body; // Assuming excelData is sent as JSON
 
     try {
@@ -609,6 +557,38 @@ app.get('/api/getUserData/:employeeId', async (req, res) => {
 // Endpoint to retrieve employee data
 app.get('/newHireEmp', async (req, res) => {
   try {
+      const employees = await dbOperation.getAllCountNewHireEmployees();
+      res.status(200).json(employees);
+  } catch (error) {
+      console.error('Error retrieving employee data:', error);
+      res.status(500).send('Error retrieving employee data.');
+  }
+});
+// Endpoint to retrieve monthly new hire count
+app.get('/monthlyNewHireCount', async (req, res) => {
+  try {
+    const monthlyNewHireCount = await dbOperation.getMonthlyNewHireCount();
+    res.status(200).json(monthlyNewHireCount);
+  } catch (error) {
+    console.error('Error retrieving monthly new hire count:', error);
+    res.status(500).send('Error retrieving monthly new hire count.');
+  }
+});
+
+// Endpoint to retrieve yearly new hire count
+app.get('/yearlyNewHireCount', async (req, res) => {
+  try {
+    const yearlyNewHireCount = await dbOperation.getYearlyNewHireCount();
+    res.status(200).json(yearlyNewHireCount);
+  } catch (error) {
+    console.error('Error retrieving yearly new hire count:', error);
+    res.status(500).send('Error retrieving yearly new hire count.');
+  }
+});
+
+//endpoints to fetch employee reports
+app.get('/retrieveReports', async (req, res) => {
+  try {
       const employees = await dbOperation.getAllNewHireEmployees();
       res.status(200).json(employees);
   } catch (error) {
@@ -623,7 +603,7 @@ app.post('/addContactNumber/:employeeId', async (req, res) => {
   try {
     // const result = await dbOperation.insertDependent(employeeId, newDependentData);
     await dbOperation.getAddNewContactId(employeeId, newContactData); // No need to assign to result if not used
-    res.json({ message: 'Secondary Contact number added successfully' });
+    res.json({ message: 'Secondary contact number added successfully' });
   } catch (error) {
     console.error('Error adding Contact number:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -654,40 +634,17 @@ app.get('/retrieve/:employeeId', async (req, res) => {
   }
 });
 
-// Update password endpoint
-// app.post('/update/password/:employeeId', async (req, res) => {
-//   const { employeeId } = req.params;
-//   const { Password } = req.body;
-
-//   try {
-//     // Hash the password
-//     const hashedPassword = await bcrypt.hash(Password, 10);
-
-//     // Perform the update operation in your database
-//     await dbOperation.updateEmployeePassword(employeeId, hashedPassword);
-
-//     res.json({ message: 'Password updated successfully' });
-//   } catch (error) {
-//     console.error('Error updating password:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
-
-// Update role type endpoint
-// app.post('/update/role/:employeeId', async (req, res) => {
-//   const { employeeId } = req.params;
-//   const { Role } = req.body;
-//   try {
-//     // Perform the update operation in your database here
-//     await dbOperation.updateEmployeeRole(employeeId, Role);
-//     // updateEmployeeRole doesn't return the updated data, you can send a success response
-//     res.json({ message: 'Role updated successfully' });
-//   } catch (error) {
-//     console.error('Error updating role:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
-
+// API endpoint to fetch all employee data
+app.get('/api/getAllEmployees', async (req, res) => {
+  try {
+      const employees = await dbOperation.getAllEmployees();
+      console.log("Fetched employees:", employees);
+      res.status(200).json(employees);
+  } catch (error) {
+      console.error('Error fetching employee data:', error);
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Endpoint to update employee by ID
 app.put('/updateEmployee/:employeeId', async (req, res) => {
@@ -758,22 +715,6 @@ app.get('/getEmployeeInfo/:employeeId', async (req, res) => {
   }
 });
 
-
-// //api endpoint for updating employee information by id
-// app.put('/updateEmployeeInfo/:employeeId', async (req, res) => {
-//   const { employeeId } = req.params;
-//   const updatedEmployeeData = req.body;
-//   try {
-//     const result = await dbOperation.updateEmployeeInfoById(employeeId, updatedEmployeeData);
-//     if (!result) {
-//       return res.status(404).json({ message: 'Employee information not found' });
-//     }
-//     res.json({ message: 'Employee information updated successfully' });
-//   } catch (error) {
-//     console.error('Error updating employee information:', error);
-//     res.status(500).json({ message: 'Internal server error' });
-//   }
-// });
 //api endpoint for updating employee address by id
 app.put('/updateEmployeeAddress/:employeeId', async (req, res) => {
   const { employeeId } = req.params;
@@ -1060,18 +1001,7 @@ app.get('/retrieve/history/:employeeId', async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
+//EMPLOYEE DB ENDPOINTS ENDS HERE
 
 
 

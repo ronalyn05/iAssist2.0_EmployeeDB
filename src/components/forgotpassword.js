@@ -38,7 +38,7 @@ function ForgotPasswordPage() {
           to_name: employeeId,
           from_name: 'Innodata - HRAdmin',
           to_email: email,
-          subject: 'Your OTP for Password Reset',
+          subject: 'Password Change Request - Your One-Time Password (OTP) for Verification',
           otp: otp,
         };
         await emailjs.send(emailServiceID, emailTemplateID, templateParams);

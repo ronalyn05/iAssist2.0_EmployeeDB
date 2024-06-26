@@ -7,37 +7,35 @@ import Footer from "./footer";
 import axios from "axios";
 
 function Dashboard() {
-  const areaChartRef = useRef(null);
-  const pieChartRef = useRef(null);
+  const chartRef = useRef(null);
 
   const [numberOfEmployees, setNumberOfEmployees] = useState(0);
-  const [numberOfusers, setNumberOfusers] = useState(0);
+  const [numberOfUsers, setNumberOfUsers] = useState(0);
+  const [monthlyNewHireData, setMonthlyNewHireData] = useState([]);
+  const [yearlyNewHireData, setYearlyNewHireData] = useState([]);
+  const [isMonthlyView, setIsMonthlyView] = useState(true);
 
- 
   const firstName = sessionStorage.getItem("firstName");
 
   useEffect(() => {
-
     const fetchNumberOfUsers = async () => {
       try {
-        const response = await axios.get("/usersAccount"); // API endpoint to fetch employees count is '/UserAccount'
-        const employeesCount = response.data.length; // response data is an array of users account
-        setNumberOfusers(employeesCount);
-        
+        const response = await axios.get("/usersAccount");
+        const usersCount = response.data.length;
+        setNumberOfUsers(usersCount);
       } catch (error) {
         console.error("Error fetching number of users:", error);
       }
     };
 
-    
     fetchNumberOfUsers();
   }, []);
 
   useEffect(() => {
     const fetchNumberOfEmployees = async () => {
       try {
-        const response = await axios.get("/newHireEmp"); // API endpoint to fetch employees count is '/newHireEmp'
-        const employeesCount = response.data.length; //response data is an array of employees
+        const response = await axios.get("/newHireEmp");
+        const employeesCount = response.data.length;
         setNumberOfEmployees(employeesCount);
       } catch (error) {
         console.error("Error fetching number of employees:", error);
@@ -47,57 +45,101 @@ function Dashboard() {
     fetchNumberOfEmployees();
   }, []);
 
-  // useEffect(() => {
+  useEffect(() => {
+    const fetchMonthlyNewHireData = async () => {
+      try {
+        const response = await axios.get("/monthlyNewHireCount");
+        setMonthlyNewHireData(response.data);
+      } catch (error) {
+        console.error("Error fetching monthly new hire data:", error);
+      }
+    };
 
-  //     // Chart.js initialization for area chart
-  //     const areaChartCtx = areaChartRef.current.getContext('2d');
-  //     const areaChartInstance = new Chart(areaChartCtx, {
-  //         type: 'line',
-  //         data: {
-  //             labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
-  //             datasets: [{
-  //                 label: 'Number of Employee',
-  //                 data: [65, 59, 80, 81, 56, 55, 40],
-  //                 backgroundColor: 'rgba(75,192,192,0.2)',
-  //                 borderColor: 'rgba(75,192,192,1)',
-  //                 borderWidth: 1
-  //             }]
-  //         },
-  //         options: {
-  //             scales: {
-  //                 y: {
-  //                     beginAtZero: true
-  //                 }
-  //             }
-  //         }
+    fetchMonthlyNewHireData();
+  }, []);
 
-  //     });
+  useEffect(() => {
+    const fetchYearlyNewHireData = async () => {
+      try {
+        const response = await axios.get("/yearlyNewHireCount");
+        setYearlyNewHireData(response.data);
+      } catch (error) {
+        console.error("Error fetching yearly new hire data:", error);
+      }
+    };
 
-  //     // Chart.js initialization for pie chart
-  //     const pieChartCtx = pieChartRef.current.getContext('2d');
-  //     const pieChartInstance = new Chart(pieChartCtx, {
-  //         type: 'pie',
-  //         data: {
-  //             labels: ['New hire', 'Sick Leave', 'Average Salary'],
-  //             datasets: [{
-  //                 data: [30, 20, 10],
-  //                 backgroundColor: ['#007bff', '#28a745', '#17a2b8'],
-  //                 borderColor: ['#007bff', '#28a745', '#17a2b8']
-  //             }]
-  //         }
-  //     });
+    fetchYearlyNewHireData();
+  }, []);
 
-  //     // Cleanup function
-  //     return () => {
-  //         if (areaChartInstance) {
-  //             areaChartInstance.destroy();
-  //         }
-  //         if (pieChartInstance) {
-  //             pieChartInstance.destroy();
-  //         }
-  //     };
+  useEffect(() => {
+    let chartInstance = null;
 
-  // }, []);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June', 
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const renderChart = (labels, data, colors) => {
+      const chartCtx = chartRef.current.getContext('2d');
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+      chartInstance = new Chart(chartCtx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'New Hires',
+            data: data,
+            backgroundColor: colors,
+            borderColor: colors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    };
+
+    if (isMonthlyView && monthlyNewHireData.length > 0) {
+      const labels = monthlyNewHireData.map(data => months[data.Month - 1]);
+      const data = monthlyNewHireData.map(data => data.NewHireCount);
+      const colors = labels.map((_, index) => `hsl(${(index / labels.length) * 360}, 100%, 75%)`);
+      renderChart(labels, data, colors);
+    } else if (!isMonthlyView && yearlyNewHireData.length > 0) {
+      const labels = yearlyNewHireData.map(data => data.Year);
+      const data = yearlyNewHireData.map(data => data.NewHireCount);
+      const colors = labels.map((_, index) => `hsl(${(index / labels.length) * 360}, 100%, 75%)`);
+      renderChart(labels, data, colors);
+    }
+
+    return () => {
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+    };
+  }, [isMonthlyView, monthlyNewHireData, yearlyNewHireData]);
+
+  const handleViewToggle = () => {
+    setIsMonthlyView(!isMonthlyView);
+  };
+    // Function to format text into sentence case
+    const toSentenceCase = (text) => {
+      if (!text) return ''; // Handle null or undefined input
+      return text
+        .toLowerCase() // Convert the text to lowercase first
+        .split(' ') // Split the text into an array of words
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize the first letter of each word
+        .join(' '); // Join the words back together
+    };
+    
 
   return (
     <div id="wrapper">
@@ -110,30 +152,27 @@ function Dashboard() {
           {/* Topbar */}
           <TopNavbar />
           {/* page content begin here */}
-
           <div className="container-fluid">
             {/* Welcome Message */}
             <div className="welcome-message">
-              <span>Hi there, {firstName}!</span>
-              <p> Nice to have you here! Let's make today great together!</p>
+              <span>Hi there, {toSentenceCase(firstName)}!</span>
+              <p>Nice to have you here! Let's make today great together!</p>
             </div>
             <br />
             {/* Page content begins here */}
             <div className="row justify-content-center">
               <div className="col-xl-4 col-md-6 mb-8">
-                {/* Earnings (Monthly) Card  */}
+                {/* Earnings (Monthly) Card */}
                 <div className="card border-left-primary shadow h-100 py-2">
                   <div className="card-body">
                     <div className="row no-gutters align-items-center">
                       <div className="col mr-2">
                         <div className="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                          Numbers of new hire employee
+                          Numbers of new hire employees this month
                         </div>
                         <div className="h5 mb-0 font-weight-bold text-gray-800">
                           {numberOfEmployees}
                         </div>
-                        {/* <div className="h5 mb-0 font-weight-bold text-gray-800">50 </div> */}
-                        {/* <h6 className="font-weight-bold text-center text-danger"> static pa ni </h6> */}
                       </div>
                       <div className="col-auto">
                         <i className="fas fa-calendar fa-2x text-gray-300"></i>
@@ -149,10 +188,10 @@ function Dashboard() {
                     <div className="row no-gutters align-items-center">
                       <div className="col mr-2">
                         <div className="text-xs font-weight-bold text-success text-uppercase mb-1">
-                          Numbers of Users
+                          Numbers of Total Registered Employees
                         </div>
                         <div className="h5 mb-0 font-weight-bold text-gray-800">
-                          {numberOfusers}
+                          {numberOfUsers}
                         </div>
                       </div>
                       <div className="col-auto">
@@ -162,84 +201,49 @@ function Dashboard() {
                   </div>
                 </div>
               </div>
-
-              {/* Self service movement card*/}
-              {/* <div className="col-xl-3 col-md-6 mb-4">
-                    <div className="card border-left-info shadow h-100 py-2">
-                        <div className="card-body">
-                        <div className="row no-gutters align-items-center">
-                                <div className="col mr-2">
-                                    <div className="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                    Self-Service Movement Record</div>
-                                    <div className="h5 mb-0 font-weight-bold text-gray-800">5</div>
-                                    <h6 className="font-weight-bold text-center text-danger"> static pa ni </h6>
-                                </div>
-                                <div className="col-auto">
-                                <i className="fas fa-user-cog fa-2x text-gray-300"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div> */}
-
-              {/* Pending Exit Card */}
-              {/* <div className="col-xl-3 col-md-6 mb-4">
-                    <div className="card border-left-warning shadow h-100 py-2">
-                        <div className="card-body">
-                        <div className="row no-gutters align-items-center">
-                                <div className="col mr-2">
-                                    <div className="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                    Pending Exit Approval</div>
-                                    <div className="h5 mb-0 font-weight-bold text-gray-800">10</div>
-                                    <h6 className="font-weight-bold text-center text-danger"> static pa ni </h6>
-                                </div>
-                                <div className="col-auto">
-                                <i className="fas fa-sign-out-alt fa-2x text-gray-300"></i>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div> */}
             </div>
-            {/* <div className="row">
-            <div className="col-xl-8 col-lg-7">
+            <br />
+            {/* NEW HIRE CHART OVERVIEW */}
+            <div className="row justify-content-center">
+              <div className="col-xl-12 col-lg-7">
                 <div className="card shadow mb-4">
-                    <div className="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                        <h6 className="m-0 font-weight-bold text-primary">HRIS Overview</h6>
-                        <div className="dropdown no-arrow">
-                            <a className="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i className="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                            </a>
-                        </div>
+                  <div className="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 className="m-0 font-weight-bold text-primary">New Hire Chart Overview</h6>
+                    <button onClick={handleViewToggle} className="btn btn-primary">
+                      {isMonthlyView ? 'Switch to Yearly View' : 'Switch to Monthly View'}
+                    </button>
+                  </div>
+                  <div className="card-body">
+                    <div className="chart-area" style={{ height: '400px' }}>
+                      <canvas ref={chartRef}></canvas>
                     </div>
-                    <div className="card-body">
-                        <div className="chart-area">
-                            <canvas ref={areaChartRef}></canvas>
-                        </div>
-                    </div>
+                  </div>
                 </div>
+              </div>
             </div>
-            <div className="col-xl-4 col-lg-7">
+            {/* <div className="row justify-content-center">
+              <div className="col-xl-12 col-lg-7">
                 <div className="card shadow mb-4">
-                    <div className="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                        <h6 className="m-0 font-weight-bold text-primary">Revenue Sources</h6>
-                        <div className="dropdown no-arrow">
-                            <a className="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i className="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                            </a>
-                        </div>
+                  <div className="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 className="m-0 font-weight-bold text-primary">New Hire Chart Overview</h6>
+                    <div className="dropdown no-arrow">
+                      <a className="dropdown-toggle" href="#" role="button" id="dropdownMenuLink"
+                        data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i className="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                      </a>
                     </div>
-                    <div className="card-body d-flex flex-column align-items-center justify-content-center">
-                    <div className="chart-pie pt-4 pb-2">
-                    <canvas ref={pieChartRef} style={{ display: 'block', margin: 'auto', maxWidth: 'auto', maxHeight: 'auto%' }}></canvas>
+                    <button onClick={handleViewToggle} className="btn btn-primary">
+                      {isMonthlyView ? 'Switch to Yearly View' : 'Switch to Monthly View'}
+                    </button>
+                  </div>
+                  <div className="card-body">
+                    <div className="chart-area" style={{ height: '400px' }}>
+                      <canvas ref={chartRef}></canvas>
                     </div>
+                  </div>
                 </div>
-                </div>
-            </div>
-        </div> */}
+              </div>
+            </div> */}
             {/* Page content ends here */}
           </div>
         </div>

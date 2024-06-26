@@ -5,7 +5,6 @@ import TopNavbar from './topnavbar';
 import Footer from './footer';
 import '../App.css';
 import { Modal, Button } from 'react-bootstrap';
-import jsPDF from "jspdf";
 import 'jspdf-autotable';
 
  function UpdateEmployeeInfo() {
@@ -13,7 +12,8 @@ import 'jspdf-autotable';
   const { employeeId } = useParams();
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddDependentModal, setShowAddDependentModal] = useState(false);
+  const [showAddCompBenModal, setShowAddCompBenModal] = useState(false);
   const [employeeData, setEmployeeData] = useState({
     EmployeeId: '',
     EmployeeName: '',
@@ -45,8 +45,26 @@ import 'jspdf-autotable';
     Is_Emergency: false,
     Is_Permanent: false,
     ProfilePhoto: "/img/user.png",
-    EmploymentStatus: '0'
+    HRANType: '',
+    Remarks: ''
   });
+  // Define initialOptions first
+  const initialOptions = [
+        'Re - Hire',
+        'Recall',
+        'Resignation',
+        'Change of Position Title',
+        'Salary Adjustment',
+        'Transfer',
+        'Force Leave',
+        'End of Contract',
+        'Extension of Fixed Term',
+        'Revert Developmental',
+        'Developmental Assignment',
+        'Others'
+  ];
+  const [otherHRANType, setOtherHRANType] = useState('');
+  const [options, setOptions] = useState(initialOptions);
   const [initialEmployeeData, setInitialEmployeeData] = useState({});
   const [dependents, setDependents] = useState([]);
   const [selectedDependent, setSelectedDependent] = useState(null);
@@ -88,14 +106,70 @@ import 'jspdf-autotable';
     Stat_PHICMonthlyContribution: '',
     Stat_TINNumber: ''
   });
+  const [filteredCompBen, setFilteredCompBen] = useState([]);
+  const [filteredHistory, setFilteredHistory] = useState([]);
   const [errors, setErrors] = useState({});
-  const [compBen, setCompBen] = useState([]);
   const [selectedCompBen, setSelectedCompBen] = useState(null);
+  const [countries, setCountries] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [provinces, setProvinces] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [barangay, setBarangay] = useState([]);
+  const [addressErrors, setAddressErrors] = useState({});
+  const [ECaddressErrors, setECAddressErrors] = useState({});
+  const [ECcountries, setECCountries] = useState([]);
+  const [ECregions, setECRegions] = useState([]);
+  const [ECprovinces, setECProvinces] = useState([]);
+  const [ECcities, setECCities] = useState([]);
+  const [ECbarangay, setECBarangay] = useState([]);
+    // Initialize state for phone number and validation error
+  const [EMphoneError, setEmPhoneError] = useState('');
+  const [contactError, setContactError] = useState('');
+  const [secondaryContactError, setSecondaryContactError] = useState('');
+  const [newContactError, setNewContactError] = useState('');
+  
+  //handles to validate address
+  const validateAddressForm = () => {
+    const errors = {};
+    if (employeeData.Country) {
+      if (!employeeData.Province) errors.Province = 'Region is required';
+      if (!employeeData.Region) errors.Region = 'Province is required';
+      if (!employeeData.CityMunicipality) errors.CityMunicipality = 'City / Municipality is required';
+      if (!employeeData.Barangay) errors.Barangay = 'Barangay is required';
+      if (!employeeData.ZipCode) errors.ZipCode = 'ZipCode is required';
+    }
+    setAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  useEffect(() => {
+    updateCompleteAddress();
+  }, [ employeeData.Landmark, employeeData.Barangay, employeeData.CityMunicipality, 
+    employeeData.Province, employeeData.Region, employeeData.Country, employeeData.ZipCode]);
+
+//handles to validate Emergency contact address
+  const validateECAddressForm = () => {
+    const errors = {};
+    if (employeeData.EmContactCountry) {
+      if (!employeeData.EmContactRegion) errors.EmContactRegion = 'Region is required';
+      if (!employeeData.EmContactProvince) errors.EmContactProvince = 'Province is required';
+      if (!employeeData.EmContactCityMunicipality) errors.EmContactCityMunicipality = 'City / Municipality is required';
+      if (!employeeData.EmContactBarangay) errors.EmContactBarangay = 'Barangay is required';
+      if (!employeeData.EmContactZipcode) errors.EmContactZipcode = 'ZipCode is required';
+    }
+    setECAddressErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+  
+  useEffect(() => {
+    updateECcompleteAddress();
+  }, [employeeData.EmContactLandMark, employeeData.EmContactBarangay, employeeData.EmContactCityMunicipality, employeeData.EmContactProvince, 
+    employeeData.EmContactRegion, employeeData.EmContactCountry, employeeData.EmContactZipcode]);
 
     // Function to handle input change in the search field
-    const handleSearchChange = (e) => {
-      setSearchQuery(e.target.value);
-    };
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
      // Go back to the previous page in history
   const handleNavigateBack = () => {
     // Navigate back one step in history (equivalent to pressing the browser's back button)
@@ -104,12 +178,16 @@ import 'jspdf-autotable';
 
     // Effect to filter dependents based on search query
     useEffect(() => {
-      const filtered = dependents.filter((dependent) =>
-        dependent.FullName.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredDependents(filtered);
+      if (dependents && dependents.length > 0) {
+        const filtered = dependents.filter((dependent) =>
+          dependent.FullName && dependent.FullName.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        setFilteredDependents(filtered);
+      } else {
+        setFilteredDependents([]);
+      }
     }, [searchQuery, dependents]);
-    
+
  // Define the fetchDependents function
  const fetchDependents = async () => {
   try {
@@ -123,19 +201,42 @@ import 'jspdf-autotable';
     console.error('Error fetching dependents:', error);
   }
 };
- // Define the fetchCompBen function
- const fetchCompBen = async () => {
+// Define the fetchCompBen function
+const fetchCompBen = async () => {
+  console.log(employeeId);
   try {
+    console.log(compBenData);
     const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
     if (!response.ok) {
-      throw new Error('Failed to fetch compensation benefits details');
+      throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
     }
     const data = await response.json();
-    setCompBen(data);
+
+        // setcompBenData(data);
+        // setCompBen(data); 
+        setFilteredCompBen(data);
   } catch (error) {
     console.error('Error fetching compensation benefits details:', error);
   }
 };
+// Define the History function
+const fetchHistory = async () => {
+  console.log(employeeId);
+  try {
+    const response = await fetch(`http://localhost:5000/retrieve/history/${employeeId}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch history details: ${response.statusText}`);
+    }
+    const data = await response.json();
+    setFilteredHistory(data); // Update the state with fetched data
+  } catch (error) {
+    console.error('Error fetching history details:', error);
+    // Handle error if needed
+  }
+};
+useEffect(() => {
+  fetchHistory();
+}, [employeeId]);
 
 // Call fetchDependents whenever employeeId changes
 useEffect(() => {
@@ -155,6 +256,7 @@ const formatDate = (date) => {
   // Function to reset form data
   const resetFormData = () => {
     setEmployeeData({
+      //Dependent fields
       FullName: '',
       PhoneNum: '',
       Relationship: '',
@@ -175,27 +277,77 @@ const formatDate = (date) => {
       HMOPolicyNumber: ''
     });
   };
+    // Function to reset form data
+    const resetCompBenForm = () => {
+      setcompBenData({
+        //Compensation Benefits
+        Salary: '',
+        DailyEquivalent: '',
+        MonthlyEquivalent: '',
+        AnnualEquivalent: '',
+        RiceMonthly: '',
+        RiceAnnual: '',
+        RiceDifferentialAnnual: '',
+        UniformAnnual: '',
+        LeaveDays: '',
+        LaundryAllowance: '',
+        CommAllowance: '',
+        CommAllowanceType: '',
+        CashGift: '',
+        MedicalInsurance: '',
+        FreeHMODependent: '',
+        MBL: '',
+        LifeInsurance: '',
+        Beneficiaries: '',
+        PersonalAccidentInsuranceBenefit: '',
+        PWDIDNumber: '',
+        TendopayRegistered: '',
+        CanteenUID: '',
+        CanteenCreditLimit: '',
+        CanteenBarcode: '',
+        DAPMembershipNumber: '',
+        DAPDependents: '',
+        Stat_SSSNumber: '',
+        Stat_SSSMonthlyContribution: '',
+        Stat_PagIbigNumber: '',
+        Stat_PagIbigMonthlyContribution: '',
+        Stat_PHICNumber: '',
+        Stat_PHICMonthlyContribution: '',
+        Stat_TINNumber: ''
+      });
+    };
   //Function to handle opening add modal for new dependent records
-const handleShowAddModal = () => {
+const handleShowAddDependentModal = () => {
   resetFormData(); // Clear form data
-  setShowAddModal(true);
+  setShowAddDependentModal(true);
+};
+const handleShowAddCompBenModal = () => {
+  resetCompBenForm(); // Clear form data
+  setShowAddCompBenModal(true);
 };
 //Function to handle closing add modal for new dependent records
 const handleCloseAddModal = () => {
-  setShowAddModal(false);
+  setShowAddDependentModal(false); // Corrected line
+  setShowAddCompBenModal(false);
 };
   // Function to handle opening edit modal and set selected dependent
-  const handleShowEditModal = (dependent, compBen) => {
+  const handleShowEditModal = (dependent) => {
     // setShowEditModal(true);
     setSelectedDependent(dependent);
-    setSelectedCompBen(compBen);
   };
   // Function to handle closing edit modal
   const handleCloseEditModal = () => {
     // setShowEditModal(false);
     setSelectedDependent(null);
-    setSelectedCompBen(null);
   };
+    // Function to handle opening edit modal and set selected dependent
+    const handleShowEditCompBenModal = (compBen) => {
+      setSelectedCompBen(compBen);
+    };
+    // Function to handle closing edit modal
+    const handleCloseEditCompBenModal = () => {
+      setSelectedCompBen(null);
+    };
 //FETCHING ALL EMPLOYEE DATA EXCLUDING THE DEPENDENT RECORDS BASED ON EMPLOYEE ID
   const fetchEmployeeData = async () => {
     try {
@@ -240,10 +392,24 @@ const handleCloseAddModal = () => {
       setErrorMessage('Error fetching employee data');
     }
   };
+  //validate phone number
+  const validatePhoneNumber = (value) => {
+    const numberRegex = /^[0-9]*$/;
+  
+    if (!numberRegex.test(value)) {
+      return 'Phone number must only contain numbers';
+    } else if (value.length > 11) {
+      return 'Phone number cannot exceed 11 digits';
+    }
+  
+    return '';
+  };
+  
 //HANDLES INPUT TO UPDATE DATA
 const handleInputChange = (e) => {
     const { name, value } = e.target;
     let newValue = value;
+    let error = '';
     
     // Convert specific fields to booleans if necessary
     switch (name) {
@@ -263,19 +429,69 @@ const handleInputChange = (e) => {
       default:
         break;
     }
-  
+        // Phone number validation
+        if (name === 'EmContactPhoneNumber') {
+          error = validatePhoneNumber(value);
+          setEmPhoneError(error);
+        } else if (name === 'ContactNumber') {
+          error = validatePhoneNumber(value);
+          setContactError(error);
+        } else if (name === 'SecondaryContactNum') {
+          error = validatePhoneNumber(value);
+          setSecondaryContactError(error);
+        } else if (name === 'newContactNumber') {
+          error = validatePhoneNumber(value);
+          setNewContactError(error);
+        }
+
     setEmployeeData({
       ...employeeData,
       [name]: newValue
     });
+
+      // Reset otherHRANType if it's not the "Others" option
+      if (name === 'HRANType' && value !== 'Others') {
+        setOtherHRANType('');
+    }
   };
+  //handles that validate remarks
+  const validateRemarks = () => {
+    if (initialOptions.includes(employeeData.HRANType) && employeeData.HRANType !== 'Others' && !employeeData.Remarks) {
+      alert('Please enter remarks for the selected HRAN Type.');
+      return false;
+    }
+    return true;
+  };
+  
+  //function to handle the additional input for hran type
+  const handleOtherInputChange = (event) => {
+    setOtherHRANType(event.target.value);
+};
+  
+//function that handles in adding other hran type details
+// const addOtherHRANType = () => {
+//     if (otherHRANType && !options.includes(otherHRANType)) {
+//         setOptions([...options, otherHRANType]);
+//         setEmployeeData({ ...employeeData, HRANType: otherHRANType });
+//         setOtherHRANType('');
+//     }
+// };
+const addOtherHRANType = () => {
+  if (otherHRANType.trim() && !options.includes(otherHRANType)) {
+    setOptions([...options, otherHRANType]);
+    setEmployeeData({
+      ...employeeData,
+      HRANType: otherHRANType
+    });
+    setOtherHRANType('');
+  }
+};
 
 // Handle form submission for adding new contact
 const handleAddContactForm = async (e) => {
   e.preventDefault();
   console.log(employeeData.newContactNumber);
   try {
-    //  const employeeId = employeeData.EmployeeId;;
     const contactResponse = await fetch(`http://localhost:5000/addContactNumber/${employeeId}`, {
       method: 'POST',
       headers: {
@@ -344,8 +560,11 @@ const handleAddContactForm = async (e) => {
       // Display the success message
       alert(successMessage);
 
-       // Reload the page after showing the alert
-      //  window.location.reload();
+      // Refresh employee data after successful addition
+      fetchEmployeeData();
+
+      // Reload the page after showing the alert
+      window.location.reload();
   
       } catch (error) {
         console.error('Error updating employee personal details:', error);
@@ -353,23 +572,45 @@ const handleAddContactForm = async (e) => {
         alert('Failed to update employee personal details. Please try again later.');
       }
   };
-  //UPDATE EMPLOYEE INFORMATION
-    const handleFormEmpInfoSubmit = async (e) => {
-        e.preventDefault(); // Prevent the default form submission
-        
-        try {
-        const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
-            method: 'PUT',
-            headers: {
-            'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(employeeData)
-        });
-    
-        if (!response.ok) {
-            throw new Error('Failed to update employee');
-        }
-    
+
+// Function to handle in updating the employee information
+const handleFormEmpInfoSubmit = async (e) => {
+  e.preventDefault(); // Prevent the default form submission
+
+  // Validate HRANType is chosen
+  if (!employeeData.HRANType) {
+    alert('Please choose an HRANType before updating the employee information.');
+    return;
+  }
+   // Validate Remarks before submission
+   if (!validateRemarks()) {
+    return;
+  }
+  try {
+    // Fetch the current employee data
+    const currentDataResponse = await fetch(`http://localhost:5000/getEmployeeInfo/${employeeId}`);
+    if (!currentDataResponse.ok) {
+      throw new Error('Failed to fetch current employee data');
+    }
+    const currentData = await currentDataResponse.json();
+
+    // Store previous values for all the fields being updated
+    const previousValues = { ...currentData };
+
+
+    // Fetch call to update employee information
+    const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(employeeData),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update employee');
+    }
+
     // Retrieve the name of the employee from employeeData
     const { FirstName, LastName } = employeeData;
     const employeeName = `${FirstName} ${LastName}`;
@@ -383,7 +624,9 @@ const handleAddContactForm = async (e) => {
     });
 
     // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
-    const filteredFields = updatedFields.filter(field => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName'].includes(field));
+    const filteredFields = updatedFields.filter(
+      (field) => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName', 'EmContactCompleteAddress'].includes(field)
+    );
 
     // Generate success message based on updated fields
     let successMessage;
@@ -392,72 +635,123 @@ const handleAddContactForm = async (e) => {
     } else {
       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
     }
-  
-      // Display the success message
-      alert(successMessage);
 
-       // Reload the page after showing the alert
-       window.location.reload();
+    // Retrieve user's first name from session storage
+    const updatedByFirstName = sessionStorage.getItem('firstName');
+    const updatedByLastName = sessionStorage.getItem('lastName');
+    const updatedByRole = sessionStorage.getItem('role');
+    const updatedBy = `${updatedByRole} ${updatedByFirstName} ${updatedByLastName}`;
 
-      } catch (error) {
-        console.error('Error updating employee information:', error);
-        // Send alert message for failure
-        alert('Failed to update employee information. Please try again later.');
+    // Insert into History table for each updated field
+    for (const field of filteredFields) {
+
+      const newValue = employeeData[field];
+      if (newValue === undefined || newValue === null) {
+        console.error(`Invalid value for field ${field}: ${newValue}`);
+        continue;
       }
-    };
+
+      const historyData = {
+        EmployeeName: employeeName,
+        Action: 'Update',
+        FieldName: field,
+        OldValue: previousValues[field] || 'N/A',
+        NewValue: employeeData[field],
+        DateCreated: new Date().toISOString(),
+        UpdatedBy: updatedBy,
+        EmployeeId: employeeId,
+        Remarks: employeeData.Remarks,
+      };
+
+      const historyResponse = await fetch('http://localhost:5000/addToHistory', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(historyData),
+      });
+
+      if (!historyResponse.ok) {
+        throw new Error('Failed to add record to History');
+      }
+    }
+
+    // Display the success message
+    alert(successMessage);
+
+        // Refresh employee data after successful addition
+        fetchEmployeeData();
+
+     // Reload the page after showing the alert
+     window.location.reload();
+
+  } catch (error) {
+    console.error('Error updating employee information:', error);
+    // Send alert message for failure
+    alert('Failed to update employee information. Please try again later.');
+  }
+};
+
       //UPDATE ADDRESS DETAILS
-    const handleAddressFormSubmit = async (e) => {
+      const handleAddressFormSubmit = async (e) => {
         e.preventDefault(); // Prevent the default form submission
-        
+    
+        if (!validateAddressForm()) {
+          return; // If validation fails, do not proceed with the API call
+        }
+    
         try {
-        const response = await fetch(`http://localhost:5000/updateEmployeeAddress/${employeeId}`, {
+          const response = await fetch(`http://localhost:5000/updateEmployeeAddress/${employeeId}`, {
             method: 'PUT',
             headers: {
-            'Content-Type': 'application/json'
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify(employeeData)
-        });
+          });
     
-        if (!response.ok) {
+          if (!response.ok) {
             throw new Error('Failed to update employee address');
-        }
+          }
     
-     // Retrieve the name of the employee from employeeData
-     const { FirstName, LastName } = employeeData;
-     const employeeName = `${FirstName} ${LastName}`;
- 
-     // Compare initial employeeData with updated employeeData
-     const updatedFields = [];
-     Object.entries(employeeData).forEach(([key, value]) => {
-       if (value !== initialEmployeeData[key]) {
-         updatedFields.push(key);
-       }
-     });
- 
-     // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
-     const filteredFields = updatedFields.filter(field => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName'].includes(field));
- 
-     // Generate success message based on updated fields
-     let successMessage;
-     if (filteredFields.length === 0) {
-       successMessage = `No address details has been updated for ${employeeName}.`;
-     } else {
-       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
-     }
- 
-  
-      // Display the success message
-      alert(successMessage);
+          // Retrieve the name of the employee from employeeData
+          const { FirstName, LastName } = employeeData;
+          const employeeName = `${FirstName} ${LastName}`;
+    
+          // Compare initial employeeData with updated employeeData
+          const updatedFields = [];
+          Object.entries(employeeData).forEach(([key, value]) => {
+            if (value !== initialEmployeeData[key]) {
+              updatedFields.push(key);
+            }
+          });
+    
+          // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
+          const filteredFields = updatedFields.filter(field => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName'].includes(field));
+    
+          // Generate success message based on updated fields
+          let successMessage;
+          if (filteredFields.length === 0) {
+            successMessage = `No address details have been updated for ${employeeName}.`;
+          } else {
+            successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
+          }
+    
+          // Display the success message
+          alert(successMessage);
+    
+          // Reload the page after showing the alert
+          // window.location.reload();
+          // Navigate to report.js
+          // navigate("/reports");
 
-       // Reload the page after showing the alert
-       window.location.reload();
-       // Navigate to report.js
-      // navigate("/reports");
-  
+        // Refresh employee data after successful addition
+        fetchEmployeeData();
+    
         } catch (error) {
-        console.error('Error updating employee address:', error);
-        }
-    };
+          console.error('Error updating employee address:', error);
+        } 
+      };
+
     //UPDATE PROJECT DETAILS
   const handleProjectFormSubmit = async (e) => {
     e.preventDefault();
@@ -547,14 +841,14 @@ const handleAddContactForm = async (e) => {
     } else {
       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
     }
-
-          // Display the success message
-          alert(successMessage);
+        // Display the success message
+        alert(successMessage);
       
-        //   // Navigate to report.js
-        //   navigate("/reports");
          // Reload the page after showing the alert
-        window.location.reload();
+        // window.location.reload();
+
+        // Refresh employee data after successful addition
+        fetchEmployeeData();
 
         } catch (error) {
           console.error('Error updating employee:', error);
@@ -651,7 +945,6 @@ const handleAddContactForm = async (e) => {
               successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
             }
         
-          
               // Display the success message
               alert(successMessage);
         
@@ -702,8 +995,6 @@ const handleAddContactForm = async (e) => {
             } else {
               successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
             }
-        
-          
               // Display the success message
               alert(successMessage);
         
@@ -739,12 +1030,15 @@ const handleAddContactForm = async (e) => {
       handleCloseEditModal(); // Close modal after successful update
       fetchDependents(); // Refresh dependents data after update
 
+      // Refresh employee data after successful addition
+     fetchEmployeeData();
+
     } catch (error) {
       console.error('Error updating dependent details:', error);
       alert('Failed to update dependent details. Please try again later.');
     }
   };
-              //ADD DEPENDENT DETAILS       
+  //ADD DEPENDENT DETAILS       
   const handleAddDependent = async (e) => {
     e.preventDefault();
 
@@ -773,14 +1067,16 @@ const handleAddContactForm = async (e) => {
      fetchEmployeeData();
 
      // Reload the tab
-     window.location.reload();
+    //  window.location.reload();
+     // Close modal
+     handleCloseAddModal();
 
     } catch (error) {
       console.error('Error adding dependent:', error);
       alert('Failed to add dependent. Please try again.');
     }
   };
-           //UPDATE PRODUCT DETAILS
+        //UPDATE PRODUCT DETAILS
         const handleProductFormSubmit = async (e) => {
             e.preventDefault();
             console.log(employeeData);
@@ -819,7 +1115,6 @@ const handleAddContactForm = async (e) => {
               successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
             }
         
-          
               // Display the success message
               alert(successMessage);
 
@@ -834,11 +1129,11 @@ const handleAddContactForm = async (e) => {
   //UPDATE EMERGENCY CONTACT DETAILS
   const handleECFormSubmit = async (e) => {
     e.preventDefault();
-    try {
-      //to be removed
-      console.log(this);
-  // console.log(employeeData.AddressID);
 
+    if (!validateECAddressForm()) {
+      return; // If validation fails, do not proceed with the API call
+    }
+    try {
       const response = await fetch(`http://localhost:5000/updateEmerContact/${employeeId}`, {
         method: 'PUT',
         headers: {
@@ -877,261 +1172,22 @@ const handleAddContactForm = async (e) => {
       alert(successMessage);
   
       // Reload the page after showing the alert
-      window.location.reload();
+      // window.location.reload();
+
+      // Refresh employee data after successful addition
+     fetchEmployeeData();
+
     } catch (error) {
       console.error('Error updating employee emergency contact:', error);
       // Send alert message for failure
       alert('Failed to update employee emergency contact. Please try again later.');
     }
   };
-  // const handleViewDetails = (employeeData) => {
-  //   setSelectedEmployee(employeeData);
-  //   setIsModalOpen(true);
-  // };
-
-  // const handleView = (employeeData) => {
-  //   navigate(`/employeeProfile`, { state: { employeeData } });
-  // };
     // Handle navigation to employee profile page with employeeData and dependents
     const handleView = () => {
       navigate('/employeeProfile', { state: { employeeData, dependents } });
     };
-  //handles the download of pdf file
-  const handleDownloadPDF = () => {
-    if (!employeeData) return;
-  
-    const doc = new jsPDF();
-    let y = 20;
-  
-    // Calculate the x position for Employee ID and Name
-      const infoX = 70; // X position for Employee ID and Name
 
-      // Add profile photo
-      const profilePhotoBase64 = employeeData.ProfilePhoto || '/img/user.png';
-      doc.addImage(profilePhotoBase64, 'JPEG', 20, y, 35, 35);
-
-      // Add Employee ID next to profile image
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("Employee Id:", infoX, y + 10);
-      doc.setFont("helvetica", "normal");
-      doc.text(Array.isArray(employeeData.EmployeeId) ? employeeData.EmployeeId[0] : employeeData.EmployeeId.toString(), infoX + 40, y + 10, { maxWidth: 80 });
-
-      // Add Name next to Employee ID
-      doc.setFont("helvetica", "bold");
-      doc.text("Name:", infoX, y + 20);
-      doc.setFont("helvetica", "normal");
-      doc.text(employeeData.EmployeeName, infoX + 40, y + 20, { maxWidth: 80 });
-
-      y += 50; // Move down after the profile section and employee info
-  
-      // Function to add section header
-      const addSectionHeader = (doc, text, y) => {
-      doc.setFillColor(65, 105, 225); // Background color (royal blue)
-      doc.setTextColor(255); // White text color
-      doc.setFontSize(14);
-  
-      const rectWidth = 190; // Width of the rectangle
-      const textWidth = doc.getTextWidth(text); // Calculate text width
-      const xPosition = (rectWidth - textWidth) / 2 + 4; // Calculate x-coordinate to center the text within the rectangle
-  
-      doc.rect(4, y - 10, rectWidth, 12, "F"); // Draw a filled rectangle for the background
-      doc.text(text, xPosition, y); // Centered text
-      y += 20;
-      return y;
-    };
-  
-    // Personal Details Section
-    y = addSectionHeader(doc, "PERSONAL DETAILS", y);
-
-    // Function to add detail fields with auto-adjustment
-      // Function to add detail fields with auto-adjustment
-  const addDetailFields = (doc, details, y) => {
-    doc.setFontSize(11);
-    doc.setTextColor(0);
-    const columnWidth = 90; // Width for each column
-    const lineHeight = 6; // Line height
-
-    for (let i = 0; i < details.length; i += 2) {
-      const detail1 = details[i];
-      const detail2 = details[i + 1];
-
-      // Function to split text into lines based on maxWidth
-      const splitTextToLines = (text, maxWidth) => {
-        return doc.splitTextToSize(text.toString(), maxWidth);
-      };
-
-      // Calculate label and value lines for both details
-      const label1Lines = splitTextToLines(detail1.label, columnWidth);
-      const value1Lines = splitTextToLines(detail1.value.toString(), columnWidth);
-      const label2Lines = detail2 ? splitTextToLines(detail2.label, columnWidth) : [];
-      const value2Lines = detail2 ? splitTextToLines(detail2.value.toString(), columnWidth) : [];
-
-      // Determine maximum line count for this detail set
-      const maxLines = Math.max(label1Lines.length, value1Lines.length, label2Lines.length, value2Lines.length);
-      const totalHeight = maxLines * lineHeight;
-
-      // Check remaining space on the current page
-      const pageHeight = doc.internal.pageSize.height;
-      const remainingSpace = pageHeight - y;
-
-      if (remainingSpace < totalHeight) {
-        // Add a new page if remaining space is insufficient
-        doc.addPage();
-        y = 20; // Reset y position for the new page
-      }
-
-      // Adjust y position to fill the remaining space on the page
-      if (y + totalHeight > pageHeight) {
-        y = 20; // Reset y position if the content exceeds the page height
-      }
-
-      // Render label and value pairs in two columns
-      doc.setFont("helvetica", "bold");
-      for (let j = 0; j < maxLines; j++) {
-        if (label1Lines[j]) {
-          doc.text(label1Lines[j], 20, y + j * lineHeight);
-        }
-        if (label2Lines[j]) {
-          doc.text(label2Lines[j], 120, y + j * lineHeight);
-        }
-      }
-
-      doc.setFont("helvetica", "normal");
-      for (let j = 0; j < maxLines; j++) {
-        if (value1Lines[j]) {
-          doc.text(value1Lines[j], 20, y + maxLines * lineHeight + j * lineHeight);
-        }
-        if (value2Lines[j]) {
-          doc.text(value2Lines[j], 120, y + maxLines * lineHeight + j * lineHeight);
-        }
-      }
-
-      // Move y position to the end of this detail set
-      y += totalHeight + 10; // Add spacing between detail sets
-    }
-
-    return y;
-  };
-
-  
-  //Persona Details Section
-  const personalDetails = [
-      { label: "First Name:", value: employeeData.FirstName },
-      { label: "Middle Name:", value: employeeData.MiddleName },
-      { label: "Last Name:", value: employeeData.LastName },
-      { label: "Maiden Name:", value: employeeData.MaidenName },
-      { label: "Birthdate:", value: employeeData.Birthdate },
-      { label: "Age:", value: employeeData.Age },
-      { label: "Birth Month:", value: employeeData.BirthMonth },
-      { label: "Age Bracket:", value: employeeData.AgeBracket },
-      { label: "Gender:", value: employeeData.Gender },
-      { label: "Marital Status:", value: employeeData.MaritalStatus },
-      { label: "SSS:", value: employeeData.SSS },
-      { label: "PHIC:", value: employeeData.PHIC },
-      { label: "HDMF:", value: employeeData.HDMF },
-      { label: "TIN:", value: employeeData.TIN },
-      { label: "Contact Number:", value: employeeData.ContactNumber },
-      { label: "Email Address:", value: employeeData.EmailAddress },
-    ];
-  
-    y = addDetailFields(doc, personalDetails, y);
-  
-    // Adding a new page for address details form
-    doc.addPage();
-    y = 20;
-            //Address Section
-            y = addSectionHeader(doc, "ADDRESS", y);
-
-            //Address Details Fields
-            const addressDetails = [
-            { label: "House Number:", value: employeeData.HouseNumber },
-            { label: "Complete Address:", value: employeeData.CompleteAddress },
-            { label: "Barangay:", value: employeeData.Barangay },
-            { label: "City / Municipality:", value: employeeData.CityMunicipality },
-            { label: "Province:", value: employeeData.Province },
-            { label: "Region:", value: employeeData.Region },
-            { label: "Country:", value: employeeData.Country },
-            { label: "Zip Code:", value: employeeData.ZipCode },
-            { label: "Landmark:", value: employeeData.Landmark },
-            { label: "Is Permanent:", value: employeeData.IsPermanent ? 'Yes' :'No' },
-            { label: "Is Emergency:", value: employeeData.IsEmergency ? 'Yes' : 'No' },
-            ];
-        
-            y = addDetailFields(doc, addressDetails, y);
-        
-            // Adding a new page for employee information form
-            doc.addPage();
-            y = 20;
-
-    //Education Section
-    y = addSectionHeader(doc, "EDUCATION", y);
-
-    //Address Details Fields
-    const educationDetails = [
-    { label: "School:", value: employeeData.School },
-    { label: "Education Level:", value: employeeData.EducationLevel},
-    { label: "Degree:", value: employeeData.Degree },
-    { label: "Major Course:", value: employeeData.MajorCourse },
-    { label: "Honor Rank:", value: employeeData.HonorRank },
-    { label: "Units Earned:", value: employeeData.UnitsEarned},
-    { label: "Session:", value: employeeData.Session},
-    { label: "Date From:", value: employeeData.DateFrom},
-    { label: "Date To:", value: employeeData.DateTo},
-    { label: "Month Completed:", value: employeeData.MonthCompleted},
-    { label: "Completed:", value: employeeData.Completed},
-    ];
-
-    y = addDetailFields(doc, educationDetails, y);
-
-    // Adding a new page for education form
-    doc.addPage();
-    y = 20;
-
-    // Employee Information Section
-    y = addSectionHeader(doc, "EMPLOYMENT INFORMATION", y);
-  
-    // Employee Information Fields
-    const employeInfo = [
-      { label: "HRAN ID:", value: employeeData.HRANID },
-      { label: "Date Hired:", value: employeeData.DateHired },
-      { label: "Tenure:", value: employeeData.Tenure },
-      { label: "Employee Level:", value: employeeData.EmployeeLevel },
-      { label: "Project Code:", value: employeeData.ProjectCode },
-      { label: "Project Name:", value: employeeData.ProjectName },
-      { label: "Designation:", value: employeeData.Designation },
-      { label: "Department:", value: employeeData.DepartmentName },
-      { label: "Product Code:", value: employeeData.ProdCode },
-      { label: "Product Description:", value: employeeData.ProdDesc },
-      { label: "Employment Status:", value: employeeData.EmploymentStatus },
-      { label: "Employee Status:", value: employeeData.EmployeeStatus },
-      { label: "Work Week Type:", value: employeeData.WorkWeekType },
-      { label: "Shift:", value: employeeData.ShiftName },
-      { label: "Work Arrangement:", value: employeeData.WorkArrangement },
-      { label: "Rate Class:", value: employeeData.RateClass },
-      { label: "Rate:", value: employeeData.Rate },
-      { label: "Manager ID:", value: employeeData.ManagerID },
-      { label: "Manager Name:", value: employeeData.ManagerName },
-      { label: "PMPICID:", value: employeeData.PMPICID },
-      { label: "PMPICID Name:", value: employeeData.PMPICIDName },
-      { label: "Delivery Unit:", value: employeeData.DUName },
-      { label: "DUHID:", value: employeeData.DUHID },
-      { label: "DUH Name:", value: employeeData.DUHName },
-      { label: "Is Manager:", value: employeeData.IsManager ? 'Yes' : 'No' },
-      { label: "Is PMPIC:", value: employeeData.IsPMPIC ? 'Yes' : 'No' },
-      { label: "Is Individual Contributor:", value: employeeData.IsIndividualContributor ? 'Yes' : 'No' },
-      { label: "Is Active:", value: employeeData.IsActive ? 'Yes' : 'No' },
-      { label: "Is DU Head:", value: employeeData.IsDUHead ? 'Yes' : 'No' },
-      { label: "HRAN Type:", value: employeeData.HRANType },
-      { label: "TITO Type:", value: employeeData.TITOType },
-      { label: "Position:", value: employeeData.Position },
-      { label: "Position Level:", value: employeeData.PositionLevel },
-    ];
-  
-    y = addDetailFields(doc, employeInfo, y);
-
-    doc.save("employee_report.pdf");
-  };
     // Define a function to determine the color based on EmployeeStatus value
     const getStatusColor = (status) => {
       switch (status) {
@@ -1151,18 +1207,326 @@ const handleAddContactForm = async (e) => {
     };
   
     const statusColor = getStatusColor(employeeData.EmployeeStatus);
-  
-    const handleRegionChange = (e) => {
-      const region = e.target.value;
-      setEmployeeData({
-        ...employeeData,
-        Province: '', 
-        CityMunicipality: '', 
-        ZipCode: '', 
-        Region: region
-      });
-      
+//Address filtering starts here
+    useEffect(() => {
+      fetchCountries();
+    }, []);
+  //function to fecth the country in geoname api
+    const fetchCountries = async () => {
+      const username = 'innodata_test'; // GeoNames username
+      try {
+        const response = await fetch(`http://api.geonames.org/countryInfoJSON?username=${username}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch countries');
+        }
+        const data = await response.json();
+        const countries = data.geonames.map(country => country.countryName);
+        setCountries(countries);
+      } catch (error) {
+        console.error('Error fetching countries:', error);
+      }
     };
+   //function to handle in filtering annd mapping the country
+   const handleCountryChange = async (e) => {
+    const selectedCountry = e.target.value;
+    setEmployeeData({ ...employeeData, Country: selectedCountry });
+    setRegions([]);
+    setProvinces([]);
+    setCities([]);
+    setBarangay([]);
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedCountry}&featureCode=ADM1&username=${username}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch regions data');
+      }
+      const data = await response.json();
+      const regions = data.geonames.map(region => region.name);
+      setRegions(regions);
+    } catch (error) {
+      console.error('Error fetching regions data:', error);
+    }
+  };
+
+  const handleRegionChange = async (e) => {
+    const selectedRegion = e.target.value;
+    setEmployeeData({ ...employeeData, Region: selectedRegion });
+    setProvinces([]);
+    setCities([]);
+    setBarangay([]);
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedRegion}&featureCode=ADM2&username=${username}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch provinces data');
+      }
+      const data = await response.json();
+      const provinces = data.geonames.map(item => item.name);
+      setProvinces(provinces);
+    } catch (error) {
+      console.error('Error fetching provinces data:', error);
+    }
+  };
+
+  const handleProvinceChange = async (e) => {
+    const selectedProvince = e.target.value;
+    setEmployeeData({ ...employeeData, Province: selectedProvince });
+    setCities([]);
+    try {
+      const username = 'innodata_test';
+      const provinceResponse = await fetch(`http://api.geonames.org/searchJSON?q=${selectedProvince}&featureCode=PPLA&featureCode=PPLA3&username=${username}`);
+      if (!provinceResponse.ok) {
+        throw new Error('Failed to fetch cities data');
+      }
+      const provinceData = await provinceResponse.json();
+      const provinceCities = provinceData.geonames.map(item => item.name);
+
+      // Fetching highly urbanized cities separately
+      const hucResponse = await fetch(`http://api.geonames.org/searchJSON?country=PH&featureCode=PPL&featureCode=PPLA2&featureCode=PPLA3&featureCode=PPLA4&username=${username}`);
+      if (!hucResponse.ok) {
+        throw new Error('Failed to fetch highly urbanized cities');
+      }
+      const hucData = await hucResponse.json();
+      const hucCities = hucData.geonames
+        .filter(item => item.adminName1 === selectedProvince)
+        .map(item => item.name);
+
+      const allCities = [...new Set([...provinceCities, ...hucCities])];
+      setCities(allCities);
+    } catch (error) {
+      console.error('Error fetching cities data:', error);
+    }
+  };
+
+  const handleCityChange = async (e) => {
+    const selectedCity = e.target.value;
+    setEmployeeData({ ...employeeData, CityMunicipality: selectedCity });
+    try {
+      const username = 'innodata_test';
+      // Fetch places (PPL or PPLX) within the selected city/municipality
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedCity}&featureCode=PPLX&username=${username}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch places data');
+      }
+      
+      const data = await response.json();
+      const barangays = data.geonames.map(item => item.name);
+      setBarangay(barangays);
+      
+      // Autofill zip code based on the first entry (if available)
+      if (data.geonames.length > 0) {
+        const firstBarangay = data.geonames[0].name; // Use the first barangay for zip code lookup
+        const zipCode = await fetchZipCode(selectedCity, firstBarangay);
+        setEmployeeData(prevData => ({
+          ...prevData,
+          ZipCode: zipCode || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching places data:', error);
+    }
+  };
+  const fetchZipCode = async (city, barangay) => {
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/postalCodeSearchJSON?placename=${barangay}&country=PH&adminCode1=&adminCode2=&adminCode3=&username=${username}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch zip code');
+      }
+      
+      const data = await response.json();
+      if (data.postalCodes.length > 0) {
+        return data.postalCodes[0].postalCode; // Return the first zip code found
+      } else {
+        console.warn('No zip code found for the selected barangay');
+        return '';
+      }
+    } catch (error) {
+      console.error('Error fetching zip code:', error);
+      return '';
+    }
+  };
+//this handles the complete address autofill
+  const updateCompleteAddress = () => {
+    const { Landmark, Barangay, CityMunicipality, Province, Region, Country, ZipCode } = employeeData;
+    const completeAddress = `${Landmark}, ${Barangay}, ${CityMunicipality}, ${Region}, ${Province}, ${Country}, ${ZipCode}`;
+    setEmployeeData({ ...employeeData, CompleteAddress: completeAddress });
+  };
+
+    const ensureOption = (options, value) => {
+      if (value && !options.includes(value)) {
+        return [value, ...options];
+      }
+      return options;
+    };
+  
+    const countriesWithExisting = ensureOption(countries, employeeData.Country);
+    const regionsWithExisting = ensureOption(regions, employeeData.Region);
+    const provincesWithExisting = ensureOption(provinces, employeeData.Province);
+    const citiesWithExisting = ensureOption(cities, employeeData.CityMunicipality);
+
+    //emergency contact address filtering starts here
+    useEffect(() => {
+      fetchECCountries();
+    }, []);
+  //function to fecth the country in geoname api
+    const fetchECCountries = async () => {
+      const username = 'innodata_test'; // GeoNames username
+      try {
+        const response = await fetch(`http://api.geonames.org/countryInfoJSON?username=${username}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch countries');
+        }
+        const data = await response.json();
+        const ECcountries = data.geonames.map(ECcountry => ECcountry.countryName);
+        setECCountries(ECcountries);
+      } catch (error) {
+        console.error('Error fetching countries:', error);
+      }
+    };
+   //function to handle in filtering annd mapping the country
+   const handleECCountryChange = async (e) => {
+    const selectedECCountry = e.target.value;
+    setEmployeeData({ ...employeeData, EmContactCountry: selectedECCountry });
+    setECRegions([]);
+    setECProvinces([]);
+    setECCities([]);
+    setECBarangay([]);
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedECCountry}&featureCode=ADM1&username=${username}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch regions data');
+      }
+      const data = await response.json();
+      const regions = data.geonames.map(region => region.name);
+      setECRegions(regions);
+    } catch (error) {
+      console.error('Error fetching regions data:', error);
+    }
+  };
+
+  const handleECRegionChange = async (e) => {
+    const selectedECRegion = e.target.value;
+    setEmployeeData({ ...employeeData, EmContactRegion: selectedECRegion });
+    setECProvinces([]);
+    setECCities([]);
+    setECBarangay([]);
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedECRegion}&featureCode=ADM2&username=${username}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch provinces data');
+      }
+      const data = await response.json();
+      const provinces = data.geonames.map(item => item.name);
+      setECProvinces(provinces);
+    } catch (error) {
+      console.error('Error fetching provinces data:', error);
+    }
+  };
+
+  const handleECProvinceChange = async (e) => {
+    const selectedECProvince = e.target.value;
+    setEmployeeData({ ...employeeData, EmContactProvince: selectedECProvince });
+    setECCities([]);
+    try {
+      const username = 'innodata_test';
+      const provinceResponse = await fetch(`http://api.geonames.org/searchJSON?q=${selectedECProvince}&featureCode=PPLA&featureCode=PPLA3&username=${username}`);
+      if (!provinceResponse.ok) {
+        throw new Error('Failed to fetch emergency contact city/municipality data');
+      }
+      const provinceData = await provinceResponse.json();
+      const provinceCities = provinceData.geonames.map(item => item.name);
+
+      // Fetching highly urbanized cities separately
+      const hucResponse = await fetch(`http://api.geonames.org/searchJSON?country=PH&featureCode=PPL&featureCode=PPLA2&featureCode=PPLA3&featureCode=PPLA4&username=${username}`);
+      if (!hucResponse.ok) {
+        throw new Error('Failed to fetch highly urbanized cities');
+      }
+      const hucData = await hucResponse.json();
+      const hucCities = hucData.geonames
+        .filter(item => item.adminName1 === selectedECProvince)
+        .map(item => item.name);
+
+      const allCities = [...new Set([...provinceCities, ...hucCities])];
+      setECCities(allCities);
+    } catch (error) {
+      console.error('Error fetching city/municipality data:', error);
+    }
+  };
+
+  const handleECCityChange = async (e) => {
+    const selectedECCity = e.target.value;
+    setEmployeeData({ ...employeeData, EmContactCityMunicipality: selectedECCity });
+    try {
+      const username = 'innodata_test';
+      // Fetch places (PPL or PPLX) within the selected city/municipality
+      const response = await fetch(`http://api.geonames.org/searchJSON?q=${selectedECCity}&featureCode=PPLX&username=${username}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch places data');
+      }
+      
+      const data = await response.json();
+      const barangays = data.geonames.map(item => item.name);
+      setECBarangay(barangays);
+      
+      // Autofill zip code based on the first entry (if available)
+      if (data.geonames.length > 0) {
+        const firstBarangay = data.geonames[0].name; // Use the first barangay for zip code lookup
+        const zipCode = await fetchECZipCode(selectedECCity, firstBarangay);
+        setEmployeeData(prevData => ({
+          ...prevData,
+          EmContactZipcode: zipCode || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching places data:', error);
+    }
+  };
+  const fetchECZipCode = async (ECcity, ECbarangay) => {
+    try {
+      const username = 'innodata_test';
+      const response = await fetch(`http://api.geonames.org/postalCodeSearchJSON?placename=${ECbarangay}&country=PH&adminCode1=&adminCode2=&adminCode3=&username=${username}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch zip code');
+      }
+      
+      const data = await response.json();
+      if (data.postalCodes.length > 0) {
+        return data.postalCodes[0].postalCode; // Return the first zip code found
+      } else {
+        console.warn('No zip code found for the selected barangay');
+        return '';
+      }
+    } catch (error) {
+      console.error('Error fetching zip code:', error);
+      return '';
+    }
+  };
+
+    //this handles the emergency contact complete address autofill
+    const updateECcompleteAddress = () => {
+      const { EmContactLandMark, EmContactBarangay, EmContactCityMunicipality, EmContactProvince, EmContactRegion, EmContactCountry, EmContactZipcode } = employeeData;
+      const completeAddress = `${EmContactLandMark}, ${EmContactBarangay}, ${EmContactCityMunicipality}, ${EmContactProvince }, ${EmContactRegion}, ${EmContactCountry}, ${EmContactZipcode}`;
+      setEmployeeData({ ...employeeData, EmContactCompleteAddress: completeAddress });
+    };
+
+    const ECensureOption = (options, value) => {
+      if (value && !options.includes(value)) {
+        return [value, ...options];
+      }
+      return options;
+    };
+  
+    const ECcountriesWithExisting = ECensureOption(ECcountries, employeeData.EmContactCountry);
+    const ECregionsWithExisting = ECensureOption(ECregions, employeeData.EmContactRegion);
+    const ECprovincesWithExisting = ECensureOption(ECprovinces, employeeData.EmContactProvince);
+    const ECcitiesWithExisting = ECensureOption(ECcities, employeeData.EmContactCityMunicipality);
 
   //array lists all the fields that are mandatory
   const requiredFields = [
@@ -1249,7 +1613,7 @@ const handleAddCompBen = async (e) => {
   e.preventDefault();
 
   try {
-    console.log(compBenData);
+    // console.log(compBenData);
     const response = await fetch(`http://localhost:5000/addCompBen/${employeeId}`, {
       method: 'POST',
       headers: {
@@ -1276,13 +1640,60 @@ const handleAddCompBen = async (e) => {
    fetchEmployeeData();
 
    // Reload the tab
-   window.location.reload();
+  //  window.location.reload();
+  
+  // Close modal
+  handleCloseAddModal();
 
   } catch (error) {
     console.error('Error adding compensation benefit:', error);
     alert('Failed to add compensation benefit. Please try again.');
   }
 };
+  // Function to handle compensation benefits form submission for update
+  const handleEditCompBenFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedCompBen || !selectedCompBen.CompBenId) return;
+      console.log(selectedCompBen);
+    try {
+      const response = await fetch(`http://localhost:5000/updateCompBen/${selectedCompBen.CompBenId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(selectedCompBen) // Send updated compensation benefits data
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update compensation benefits details');
+      }
+
+      const data = await response.json();
+      alert(data.message); // Display success message from backend
+      fetchCompBen();
+      handleCloseEditCompBenModal(); // Close modal after successful update
+       // Refresh compensation benefits data after update
+
+    } catch (error) {
+      console.error('Error updating compensation benefits details:', error);
+      alert('Failed to update compensation benefits details. Please try again later.');
+    }
+  };
+// Function to format text into sentence case
+const toSentenceCase = (text) => {
+  if (!text) return ''; // Handle null or undefined input
+  return text
+    .toLowerCase() // Convert the text to lowercase first
+    .split(' ') // Split the text into an array of words
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1)) // Capitalize the first letter of each word
+    .join(' '); // Join the words back together
+};
+// Function to check if a value is a valid date
+function isValidDate(dateString) {
+  const d = new Date(dateString);
+  return !isNaN(d);
+}
+
   if (!employeeData) {
     return <div>Loading...</div>;
   }
@@ -1301,46 +1712,17 @@ const handleAddCompBen = async (e) => {
               <button
                 className="seeProfile btn btn-xs mr-2"
                 onClick={handleView} >
-                <i className="fas fa-eye"></i> See Profile
+                <i className="fas fa-eye"></i> View Profile
                </button>
                <div className="d-flex align-items-center">
-                <button
-                  className="update-button btn btn-xs mr-2"
-                  onClick={handleNavigateBack}
-                >
-                  <i className="fas fa-arrow-left"></i> Back
-                </button>
+                  <button
+                    className="update-button btn btn-xs mr-2"
+                    onClick={handleNavigateBack}
+                  >
+                    <i className="fas fa-arrow-left"></i> Back
+                  </button>
+                </div>
               </div>
-              {/* <br /> */}
-                    {/* <div className="d-flex align-items-center"> */}
-                    {/* <button
-                        className="update-button btn btn-xs"
-                        onClick={handleDownloadPDF}
-                      >
-                        <i className="fas fa-arrow-down"></i> Download Record
-                      </button> */}
-
-                        {/* <Button variant="primary" onClick={handleDownloadPDF}>
-                        <i className="fas fa-arrow-down"></i> Download Record
-          </Button> */}
-                    {/* </div> */}
-                    </div>
-                {/* <div className='card-body'>
-                <button
-                                      className="seeProfile btn btn-xs mr-2"
-                                      onClick={handleView}
-                                    >
-                                      <i className="fas fa-eye"></i> See Profile
-                                    </button> */}
-              {/* <button
-                                      className="btn btn-xs btn-primary "
-                                      onClick={() =>
-                                        handleViewDetails(employeeData)
-                                      }
-                                    >
-                                      <i className="far fa-eye"></i> View Profile
-                                    </button> */}
-                                    {/* </div> */}
               <div className="card-header py-3 d-flex flex-row align-items-center justify-content-between">
                   <ul className="nav nav-tabs nav-fill">
                       <li className="nav-item">
@@ -1360,6 +1742,9 @@ const handleAddCompBen = async (e) => {
                       </li>
                       <li className="nav-item">
                           <a className="nav-link " id="compBen-tab" data-toggle="tab" href="#compBen" role="tab" aria-controls="compBen" aria-selected="false">CompBen</a>
+                      </li>
+                      <li className='nav-item'>
+                        <a className='nav-link' id='history-tab' data-toggle='tab' href='#history' role='tab' aria-controls='history' aria-selected='false'>History</a>                       
                       </li>
                   </ul>
                   </div>
@@ -1423,7 +1808,15 @@ const handleAddCompBen = async (e) => {
                                     <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="birthdate">Birthdate</label>
-                                              <input type="text" className="form-control" value={employeeData.Birthdate} onChange={handleInputChange} name="Birthdate"/>
+                                              {/* <input type="text" className="form-control" value={employeeData.Birthdate} onChange={handleInputChange} name="Birthdate"/> */}
+                                              <input
+                                              type="date"
+                                              className="form-control"
+                                              value={employeeData.Birthdate ? new Date(employeeData.Birthdate).toISOString().substr(0, 10) : ''}
+                                              placeholder="Birth Date"
+                                              name="Birthdate"
+                                              onChange={handleInputChange}
+                                            />
                                               </div>
                                             </div>
                                 </div>
@@ -1499,8 +1892,8 @@ const handleAddCompBen = async (e) => {
                           <div className="container">
                             <form onSubmit={handleFormEmpInfoSubmit}>
                             <div className='card-body'>
-                              <h5 className='text-primary'>Section 1</h5>
-                                <hr className="hr-cobalt-blue"/>
+                              {/* <h5 className='text-primary'>Section 1</h5> */}
+                                {/* <hr className="hr-cobalt-blue"/> */}
                                 <br/>
                                 <div className="row justify-content-center">
                                 <div className="col-md-4">
@@ -1518,7 +1911,14 @@ const handleAddCompBen = async (e) => {
                                     <div className="col-md-4">
                                         <div className="form-group">
                                             <label htmlFor="dateHired">Date Hired</label>
-                                            <input type="text" className="form-control" value={employeeData.DateHired} placeholder="Date Hired" name="DateHired" onChange={handleInputChange} />
+                                            <input
+                                              type="date"
+                                              className="form-control"
+                                              value={employeeData.DateHired ? new Date(employeeData.DateHired).toISOString().substr(0, 10) : ''}
+                                              placeholder="Date Hired"
+                                              name="DateHired"
+                                              onChange={handleInputChange}
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -1533,7 +1933,6 @@ const handleAddCompBen = async (e) => {
                                                       style={{ color: statusColor }} 
                                                       className='form-control'
                                                     >
-                                                    {/* <select value={employeeData.EmployeeStatus} name="EmployeeStatus" onChange={handleInputChange}> */}
                                                         <option value="Active">Active</option>
                                                         <option value="Separated">Separated</option>
                                                         <option value="Inactive - Maternity">Inactive - Maternity</option>
@@ -1564,7 +1963,6 @@ const handleAddCompBen = async (e) => {
                                                         <option value="Associate">Associate</option>
                                                         <option value="Management">Management</option>
                                                     </select>
-                                              {/* <input type="text" className="form-control" value={employeeData.EmployeeCategory} placeholder="enter work Week Type" name="EmployeeCategory" onChange={handleInputChange} /> */}
                                               </div>
                                             </div>
                                 </div>
@@ -1600,11 +1998,12 @@ const handleAddCompBen = async (e) => {
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="position">Position</label>
-                                              {/* <input type="text" className="form-control" value={employeeData.Position} placeholder="enter tito type" name="TitoType" onChange={handleInputChange} /> */}
-                                              <select className='form-control' 
-                                                      value={employeeData.Position} 
-                                                      name="Position" 
-                                                      onChange={handleInputChange}>
+                                                      <select 
+                                                        className='form-control' 
+                                                        value={employeeData.Position} 
+                                                        name="Position" 
+                                                        onChange={handleInputChange}
+                                                      >
                                                   <option value="Associate">Associate</option>
                                                   <option value="Lead Associate">Lead Associate</option>
                                                   <option value="VP-Country Head, Philippines">VP-Country Head, Philippines</option>
@@ -1703,7 +2102,7 @@ const handleAddCompBen = async (e) => {
                                               <div className="form-group">
                                               <label htmlFor="facility">Facility</label>
                                               <select className="form-control" value={employeeData.Facility} name="Facility" onChange={handleInputChange}>
-                                                        <option value="Cebu">Cebu</option>
+                                                        <option value="Mandaue">Mandaue</option>
                                                         <option value="Manila">Manila</option>
                                                         <option value="Legazpi">Legazpi</option>
                                                     </select>
@@ -1717,11 +2116,20 @@ const handleAddCompBen = async (e) => {
                                               <input type="text" className="form-control" value={employeeData.TITOType} placeholder="enter tito type" name="TitoType" onChange={handleInputChange} />
                                               </div>
                                             </div>
+                                            <div className="col-md-4">
+                                              <div className="form-group">
+                                              <label htmlFor="RoleType">Employee Role Type</label>
+                                              <select className='form-control' 
+                                                    value={employeeData.Role} name="Role" onChange={handleInputChange}>
+                                                        <option value="HRAdmin">HRAdmin</option>
+                                                        <option value="Employee">Employee</option>
+                                                    </select>
+                                              </div>
+                                            </div>
                                 </div>
-                                
                                 <hr/>
-                                  <h5 className='text-primary'>Section 2</h5>
-                                  <hr className="hr-cobalt-blue"/>
+                                  {/* <h5 className='text-primary'>Section 2</h5> */}
+                                  {/* <hr className="hr-cobalt-blue"/> */}
                                 <br/>
                                 <div className="row ">
                                 <div className="col-md-4">
@@ -1741,39 +2149,39 @@ const handleAddCompBen = async (e) => {
                                                         <option value="C9 ">C9</option>
                                                         <option value="F40">F40</option>
                                                         <option value="F43">F43</option>
-                                                        <option value="HB"></option>
-                                                        <option value="F1"></option>
-                                                        <option value="F4"></option>
-                                                        <option value="N1"></option>
-                                                        <option value="F13"></option>
-                                                        <option value="F3"></option>
-                                                        <option value="F18"></option>
-                                                        <option value="N2"></option>
-                                                        <option value="F55"></option>
-                                                        <option value="F77"></option>
-                                                        <option value="N9"></option>
-                                                        <option value="F41"></option>
-                                                        <option value="F46"></option>
-                                                        <option value="C1"></option>
-                                                        <option value="F81"></option>
-                                                        <option value="N10"></option>
-                                                        <option value="N3"></option>
-                                                        <option value="F62"></option>
-                                                        <option value="F48"></option>
-                                                        <option value="C7"></option>
-                                                        <option value="F7"></option>
-                                                        <option value="F86"></option>
-                                                        <option value="F69"></option>
-                                                        <option value="F12"></option>
-                                                        <option value="G79"></option>
-                                                        <option value="G59"></option>
-                                                        <option value="C10"></option>
-                                                        <option value="F2"></option>
-                                                        <option value="F61"></option>
-                                                        <option value="G4"></option>
-                                                        <option value="N4"></option>
-                                                        <option value="N8"></option>
-                                                        <option value="C2"></option>
+                                                        <option value="HB">HB</option>
+                                                        <option value="F1">F1</option>
+                                                        <option value="F4">F4</option>
+                                                        <option value="N1">N1</option>
+                                                        <option value="F13">F13</option>
+                                                        <option value="F3">F3</option>
+                                                        <option value="F18">F18</option>
+                                                        <option value="N2">N2</option>
+                                                        <option value="F55">F55</option>
+                                                        <option value="F77">F77</option>
+                                                        <option value="N9">N9</option>
+                                                        <option value="F41">F41</option>
+                                                        <option value="F46">F46</option>
+                                                        <option value="C1">C1</option>
+                                                        <option value="F81">F81</option>
+                                                        <option value="N10">N10</option>
+                                                        <option value="N3">N3</option>
+                                                        <option value="F62">F62</option>
+                                                        <option value="F48">F48</option>
+                                                        <option value="C7">C7</option>
+                                                        <option value="F7">F7</option>
+                                                        <option value="F86">F86</option>
+                                                        <option value="F69">F69</option>
+                                                        <option value="F12">F12</option>
+                                                        <option value="G79">G79</option>
+                                                        <option value="G59">G59</option>
+                                                        <option value="C10">C10</option>
+                                                        <option value="F2">F2</option>
+                                                        <option value="F61">F61</option>
+                                                        <option value="G4">G4</option>
+                                                        <option value="N4">N4</option>
+                                                        <option value="N8">N8</option>
+                                                        <option value="C2">C2</option>
                                                         <option value="N6">N6</option>
                                                         <option value="C6">C6</option>
                                                         <option value="F15">F15</option>
@@ -1806,17 +2214,14 @@ const handleAddCompBen = async (e) => {
                                                         <option value="F80">F80</option>
                                                         <option value="F74">F74</option>
                                                         <option value="F59">F59</option>
-                                                        <option value="F6">F6 </option>
+                                                        <option value="F6">F6</option>
                                                     </select>
-                                              {/* <input type="text" className="form-control" value={employeeData.EmployeeCategory} placeholder="enter work Week Type" name="EmployeeCategory" onChange={handleInputChange} /> */}
                                               </div>
                                             </div>
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="shiftname">Shift Name</label>
-                                              {/* <input type="text" className="form-control" value={employeeData.ShiftName} name="ShiftName" />     */}
                                               <select className="form-control" value={employeeData.ShiftName} name="ShiftName" onChange={handleInputChange}>
-                                              {/* <select className="form-control" value={`${employeeData.ShiftName}`} name="ShiftName" onChange={handleShiftChange}> */}
                                                 <option value=" FIXED - 6 Day 6:00AM to 2:00PM">FIXED - 6 Day 6:00AM to 2:00PM</option>
                                                 <option value=" FIXED - 5 Day 8:00PM to 5:12AM"> FIXED - 5 Day 8:00PM to 5:12AM</option>
                                                 <option value=" FIXED - 6 Day 10:00PM to 6:00AM"> FIXED - 6 Day 10:00PM to 6:00AM</option>
@@ -1896,92 +2301,11 @@ const handleAddCompBen = async (e) => {
                                                 <option value=" FIXED - 6 Day 8:00AM to 4:00PM"> FIXED - 6 Day 8:00AM to 4:00PM</option>
                                                 <option value=" FIXED - 6 Day 8:00PM to 4:00AM"> FIXED - 6 Day 8:00PM to 4:00AM</option>
                                             </select>
-                                              {/* <select className="form-control" value={employeeData.ShiftCode + '' + employeeData.ShiftName} name="ShiftName" onChange={handleInputChange}>
-                                                      <option value="[G1] FIXED - 6 Day 6:00AM to 2:00PM ">[G1] FIXED - 6 Day 6:00AM to 2:00PM</option>
-                                                      <option value="[F54] FIXED - 5 Day 8:00PM to 5:12AM">[F54] FIXED - 5 Day 8:00PM to 5:12AM</option>
-                                                      <option value="[G3] FIXED - 6 Day 10:00PM to 6:00AM">[G3] FIXED - 6 Day 10:00PM to 6:00AM</option>
-                                                      <option value="[F39] FIXED - 5 Day 9:00PM to 6:12AM">[F39] FIXED - 5 Day 9:00PM to 6:12AM</option>
-                                                      <option value="[F47] FIXED - 5 Day 9:00AM to 6:12PM">[F47] FIXED - 5 Day 9:00AM to 6:12PM</option>
-                                                      <option value="[C3] FLEXI - 8:00AM to 8:00PM">[C3] FLEXI - 8:00AM to 8:00PM</option>
-                                                      <option value="G2">[G2] FIXED - 6 Day 2:00PM to 10:00PM</option>
-                                                      <option value="F14">[F14] FIXED - 5 Day 11:00AM to 8:12PM</option>
-                                                      <option value="F11">[F11] FIXED - 5 Day 6:00AM to 3:12PM</option>
-                                                      <option value="C9">[C9] FLEXI - 10:00AM to 10:00PM</option>
-                                                      <option value="F40">[F40] FIXED - 5 Day 12:00PM to 9:12PM</option>
-                                                      <option value="F43">[F43] FIXED - 5 Day 11:00PM to 8:12AM</option>
-                                                      <option value="HB">[HB] HOME-BASED ONLY</option>
-                                                      <option value="F1">[F1] FIXED - 6 Day 6:00AM to 2:00PM</option>
-                                                      <option value="F4">[F4] FIXED - 6 Day 9:00AM to 5:00PM</option>
-                                                      <option value="N1">[N1] FLEXI 2 - 6:00AM to 6:00PM</option>
-                                                      <option value="F13">[F13] FIXED - 5 Day 10:00AM to 7:12PM</option>
-                                                      <option value="F3">[F3] FIXED - 6 Day 10:00PM to 6:00AM</option>
-                                                      <option value="F18">[F18] FIXED - 5 Day 10:00PM to 7:12AM</option>
-                                                      <option value="N2">[N2] FLEXI 2 - 12:00PM to 12:00AM</option>
-                                                      <option value="F55">[F55] FIXED - 5 Day 4:00PM to 1:12AM</option>
-                                                      <option value="F77">[F77] FIXED - 5 Day 5:00AM to 2:12PM</option>
-                                                      <option value="N9">[N9] FLEXI 2 - 10:00AM to 10:00PM</option>
-                                                      <option value="F41">[F41] FIXED - 6 Day 10:00AM to 6:00PM</option>
-                                                      <option value="F46">[F46] FIXED - 5 Day 4:00AM to 1:12PM</option>
-                                                      <option value="C1">[C1] FLEXI - 6:00AM to 6:00PM</option>
-                                                      <option value="F81">[F81] FIXED - 5 Day 3:15PM to 12:27AM</option>
-                                                      <option value="N10">[N10] FLEXI 2 - 9:00AM to 9:00PM</option>
-                                                      <option value="N3">[N3] FLEXI 2 - 8:00AM to 8:00PM</option>
-                                                      <option value="F62">[F62] FIXED - 5 Day 3:00PM to 12:12AM</option>
-                                                      <option value="F48">[F48] FIXED - 5 Day 12:00MN to 9:12AM</option>
-                                                      <option value="C7">[C7] FLEXI - 7:00AM to 7:00PM</option>
-                                                      <option value="F7">[F7] FIXED - 6 Day 12:00AM to 8:00AM</option>
-                                                      <option value="F86">[F86] FIXED - 5 Day 6:20AM to 3:32PM</option>
-                                                      <option value="F69">[F69] FIXED - 5 Day 7:00AM to 4:12PM</option>
-                                                      <option value="F12">[F12] FIXED - 5 Day 8:00AM to 5:12PM</option>
-                                                      <option value="G79">[G79] FIXED - 6 Day 12:00AM to 8:00AM</option>
-                                                      <option value="G59">[G59] FIXED - 6 Day 8:00AM to 4:00PM</option>
-                                                      <option value="C10">[C10] FLEXI - 9:00AM to 9:00PM</option>
-                                                      <option value="F2">[F2] FIXED - 6 Day 2:00PM to 10:00PM</option>
-                                                      <option value="F61">[F61] FIXED - 6 Day 7:00AM to 3:00PM</option>
-                                                      <option value="G4">[G4] FIXED - 6 Day 9:00AM to 5:00PM</option>
-                                                      <option value="N4">[N4] FLEXI 2 - 3:00PM to 3:00AM</option>
-                                                      <option value="N8">[N8] FLEXI 2 - 5:00PM to 5:00AM</option>
-                                                      <option value="C2">[C2] FLEXI - 12:00PM to 12:00AM</option>
-                                                      <option value="N6">[N6] FLEXI 2 - 10:00PM to 10:00AM</option>
-                                                      <option value="C6">[C6] FLEXI - 10:00PM to 10:00AM</option>
-                                                      <option value="F15">[F15] FIXED - 5 Day 1:00PM to 10:12PM</option>
-                                                      <option value="F82">[F82] FIXED - 5 Day 2:12PM to 11:24PM</option>
-                                                      <option value="F57">[F57] FIXED - 5 Day 11:30AM to 8:42PM</option>
-                                                      <option value="G41">[G41] FIXED - 6 Day 10:00AM to 6:00PM</option>
-                                                      <option value="F60">[F60] FIXED - 6 Day 3:00PM to 11:00PM</option>
-                                                      <option value="N11">[N11] FLEXI 2 - 11:00AM to 11:00PM</option>
-                                                      <option value="F76">[F76] FIXED - 5 Day 10:30PM to 7:42AM</option>
-                                                      <option value="N5">[N5] FLEXI 2 - 8:00PM to 8:00AM</option>
-                                                      <option value="F17">[F17] FIXED - 5 Day 3:12PM to 12:25AM</option>
-                                                      <option value="F72">[F72] FIXED - 5 Day 5:00PM to 2:12AM</option>
-                                                      <option value="F73">[F73] FIXED - 5 Day 6:00PM to 3:12AM</option>
-                                                      <option value="F84">[F84] FIXED - 5 Day 7:20AM to 4:32PM</option>
-                                                      <option value="F68">[F68] FIXED - 6 Day 6:00PM to 2:00AM</option>
-                                                      <option value="C4">[C4] FLEXI - 3:00PM to 3:00AM</option>
-                                                      <option value="N12">[N12] FLEXI 2 - 2:00PM to 2:00AM</option>
-                                                      <option value="F5">[F5] FIXED - 6 Day 12:00PM to 8:00PM</option>
-                                                      <option value="F83">[F83] FIXED - 5 Day 12:40PM to 9:52PM</option>
-                                                      <option value="F50">[F50] FIXED - 5 Day 2:00AM to 11:12AM</option>
-                                                      <option value="F9">[F9] FIXED - 6 Day 4:00PM to 12:00AM</option>
-                                                      <option value="C5">[C5] FLEXI - 8:00PM to 8:00AM</option>
-                                                      <option value="C11">[C11] FLEXI - 11:00AM to 11:00PM</option>
-                                                      <option value="C8">[C8] FLEXI - 5:00PM to 5:00AM</option>
-                                                      <option value="G5">[G5] FIXED - 6 Day 12:00PM to 8:00PM</option>
-                                                      <option value="F63">[F63] FIXED - 5 Day 7:00PM to 4:12AM</option>
-                                                      <option value="G61">[G61] FIXED - 6 Day 7:00AM to 3:00PM</option>
-                                                      <option value="F16">[F16] FIXED - 5 Day 2:00PM to 11:12PM</option>
-                                                      <option value="F64">[F64] FIXED - 5 Day 1:00AM to 10:12AM</option>
-                                                      <option value="F80">[F80] FIXED - 5 Day 8:20AM to 5:32PM</option>
-                                                      <option value="F74">[F74] FIXED - 5 Day 3:00AM to 12:12PM</option>
-                                                      <option value="F59">[F59] FIXED - 6 Day 8:00AM to 4:00PM</option>
-                                                      <option value="F6">[F6] FIXED - 6 Day 8:00PM to 4:00AM</option>
-                                                    </select>    */}
                                               </div>
                                             </div>
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="shifttype">Shift Type</label>
-                                              {/* <input type="text" className="form-control" value={employeeData.ShiftType} name="ShiftType" />   */}
                                               <select className="form-control" value={employeeData.ShiftType} name="ShiftType" onChange={handleInputChange}>
                                                         <option value="1st">1st</option>
                                                         <option value="2nd">2nd</option>
@@ -1995,7 +2319,6 @@ const handleAddCompBen = async (e) => {
                                             <div className="col-md-6">
                                               <div className="form-group">
                                               <label htmlFor="workWeekType"> Work week type</label>
-                                              {/* <input type="text" className="form-control" value={employeeData.WorkWeekType} placeholder="enter work Week Type" name="WorkWeekType" onChange={handleInputChange} /> */}
                                               <select className="form-control" value={employeeData.WorkWeekType} name="WorkWeekType" onChange={handleInputChange}>
                                                         <option value="Non-Compressed Work Week">Non-Compressed Work Week</option>
                                                         <option value="Compressed Work Week (Philippines Facilities)">Compressed Work Week (Philippines Facilities)</option>
@@ -2005,20 +2328,25 @@ const handleAddCompBen = async (e) => {
                                             <div className="col-md-6">
                                               <div className="form-group">
                                               <label htmlFor="workArrangement">Work Arrangement</label>
-                                              <input type="text" className="form-control" value={employeeData.WorkArrangement} placeholder="enter work arrangement" name="WorkArrangement" onChange={handleInputChange} />
+                                              <select className="form-control" value={employeeData.WorkArrangement} name="WorkArrangement" onChange={handleInputChange}>
+                                                        <option value="WOS">Work On Site</option>
+                                                        <option value="WFH">Work From Home</option>
+                                                        <option value="Hybrid">Hybrid</option>
+                                                    </select>
                                               </div>
                                             </div>
                                             
                                 </div>
                                 <hr/>
-                                  <h5 className='text-primary'>Section 3</h5>
-                                  <hr className="hr-cobalt-blue"/>
+                                  {/* <h5 className='text-primary'>Section 3</h5> */}
+                                  {/* <hr className="hr-cobalt-blue"/> */}
                                 <br/>
                                 <div className="row justify-content-center">
                                 <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="managerId">Manager Id</label>
-                                              <input type="text" className="form-control" value={employeeData.ManagerID} placeholder="enter manager Id" name="ManagerId" onChange={handleInputChange} />     
+                                              <input type="text" className="form-control" value={employeeData.ManagerID} placeholder="enter manager Id" name="ManagerID" onChange={handleInputChange} />   
+                                              {/* <span className="form-control">{employeeData.ManagerID}</span> */}
                                               </div>
                                             </div>
                                             <div className="col-md-4">
@@ -2030,7 +2358,7 @@ const handleAddCompBen = async (e) => {
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="pmpicid">PM/PIC ID</label>
-                                              <input type="text" className="form-control" value={employeeData.PMPICID} placeholder="enter pmpicid" name="Pmpicid" onChange={handleInputChange} />
+                                              <input type="text" className="form-control" value={employeeData.PMPICID} placeholder="enter pmpicid" name="PMPICID" onChange={handleInputChange} />
                                               </div>
                                             </div>
                                 </div>
@@ -2044,7 +2372,8 @@ const handleAddCompBen = async (e) => {
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="duhid">Delivery Unit Head ID</label>
-                                              <input type="text" className="form-control" value={employeeData.DUHID} placeholder="enter duhid" name="Duhid" onChange={handleInputChange} />
+                                              {/* <input type="text" className="form-control" value={employeeData.DUHID} placeholder="enter duhid" name="DUHID" onChange={handleInputChange} /> */}
+                                              <span className="form-control">{employeeData.DUHID}</span>
                                               </div>
                                             </div>
                                             <div className="col-md-4">
@@ -3136,14 +3465,99 @@ const handleAddCompBen = async (e) => {
                                             </div>
                                    </div>
                                    <hr/>
-                                  <h5 className='text-primary'>Section 4</h5>
-                                  <hr className="hr-cobalt-blue"/>
+                                  {/* <h5 className='text-primary'>Section 4</h5> */}
+                                  {/* <hr className="hr-cobalt-blue"/> */}
                                 <br/>
                                 <div className="row justify-content-center">
-                                            <div className="col-md-4">
-                                              <div className="form-group">
-                                              <label htmlFor="HRANType">HRAN Type</label>
-                                              <input type="text" className="form-control" value={employeeData.HRANType} placeholder="enter HRAN Type" name="HRANTYPE" onChange={handleInputChange} />     
+                                  <div className="col-md-4">
+                                    <div className="form-group">
+                                      <label htmlFor="HRANType">HRAN Type</label>
+                                      <select
+                                        className="form-control"
+                                        value={employeeData.HRANType}
+                                        name="HRANType"
+                                        onChange={handleInputChange}
+                                      >
+                                        {options.map((option, index) => (
+                                          <option key={index} value={option}>
+                                            {option}
+                                          </option>
+                                        ))}
+                                      </select>
+                                      <br />
+                                      {employeeData.HRANType === 'Others' && (
+                                        <div className="d-flex align-items-center">
+                                          <input
+                                            type="text"
+                                            className="form-control mr-2"
+                                            placeholder="Please specify"
+                                            value={otherHRANType}
+                                            onChange={handleOtherInputChange}
+                                          />
+                                          <button type="button" className="btn btn-primary" onClick={addOtherHRANType}>Add</button>
+                                        </div>
+                                      )}
+                                      {employeeData.HRANType !== 'Others' && employeeData.HRANType && (
+                                        <div className="form-group mt-3">
+                                          <label htmlFor="Remarks">Remarks</label>
+                                          <textarea
+                                            className="form-control"
+                                            name="Remarks"
+                                            value={employeeData.Remarks}
+                                            onChange={handleInputChange}
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="form-group">
+                                      <label htmlFor="isManager">Is Manager</label>
+                                      <select className="form-control" value={employeeData.IsManager} name="IsManager" onChange={handleInputChange}>
+                                        <option value={true}>Yes</option>
+                                        <option value={false}>No</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div className="col-md-4">
+                                    <div className="form-group">
+                                      <label htmlFor="isPmpic">Is PMPIC</label>
+                                      <select className="form-control" value={employeeData.IsPMPIC} name="IsPMPIC" onChange={handleInputChange}>
+                                        <option value={true}>Yes</option>
+                                        <option value={false}>No</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                                  {/* <div className="row justify-content-center">
+                                              <div className="col-md-4">
+                                                <div className="form-group">
+                                                <label htmlFor="HRANType">HRAN Type</label>
+                                                            <select
+                                                                className="form-control"
+                                                                value={employeeData.HRANType}
+                                                                name="HRANType"
+                                                                onChange={handleInputChange}
+                                                            >
+                                                                {options.map((option, index) => (
+                                                                    <option key={index} value={option}>
+                                                                        {option}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                            <br />
+                                                            {employeeData.HRANType === 'Others' && (
+                                                                <div className="d-flex align-items-center">
+                                                                  <input
+                                                                      type="text"
+                                                                      className="form-control mr-2"
+                                                                      placeholder="Please specify"
+                                                                      value={otherHRANType}
+                                                                      onChange={handleOtherInputChange}
+                                                                  />
+                                                                     <button type="button" className="btn btn-primary" onClick={addOtherHRANType}>Add</button>
+                                                                </div>
+                                                            )}
                                               </div>
                                             </div>
                                             <div className="col-md-4">
@@ -3164,7 +3578,7 @@ const handleAddCompBen = async (e) => {
                                                     </select>
                                               </div>
                                             </div>
-                                </div>
+                                </div> */}
                                 <div className="row justify-content-center">
                                             <div className="col-md-4">
                                               <div className="form-group">
@@ -3201,228 +3615,221 @@ const handleAddCompBen = async (e) => {
                       <br/>
                       </div>
                       <div className="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab">
-                          {/* Address Form */}
-                        <div className="container">
-                          <h5 className='text-primary'>Contact Details</h5>
-                                <hr className="hr-cobalt-blue"/>
-                                <br/>
-                                <div className="row">
-                                <form onSubmit={handleFormSubmit}>
-                                  <div className="form-group">
-                                    <label>Update Contact Number</label>
-                                    <div className="d-flex align-items-center">
-                                      <input 
-                                        type="tel" 
-                                        className="form-control mr-2" 
-                                        value={employeeData.ContactNumber} 
-                                        placeholder="update contact number" 
-                                        name="ContactNumber" 
-                                        onChange={handleInputChange} 
-                                      />
-                                      <button type="submit" className="btn btn-primary">Update</button>
-                                    </div>
-                                  </div>
-                                </form>
-                                    {/* <div className="col-md-4">
-                                    <form onSubmit={handleAddContactForm}>
-                                      <div>
-                                        <label >Primary Contact Number</label>
-                                        <span className='form-control'>{employeeData.ContactNumber}</span>
-                                      </div>
-                                      </form>
-                                    </div> */}
-                                    {employeeData.SecondaryContactNum && employeeData.SecondaryContactNum !== "N/A" && (
-                                    <div className="col-md-4">
-                                      <div>
-                                        <label>Secondary Contact Number</label>
-                                        {/* <input 
-                                        type="tel" 
-                                        className="form-control mr-2" 
-                                        value={employeeData.SecondaryContactNum} 
-                                        placeholder="update contact number" 
-                                        name="SecondaryContactNum" 
-                                        onChange={handleInputChange} 
-                                      /> */}
-                                      {/* <button type="submit" onSubmit={handleAddContactForm} className="btn btn-primary">Update</button> */}
-                                        <span className='form-control'>{employeeData.SecondaryContactNum}</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                   <div className="col-md-4">
-                                    <form onSubmit={handleAddContactForm}>
+                                    {/* Address Form */}
+                                    <div className="container">
+                                      <h5 className="text-primary">Contact Details</h5>
+                                      <hr className="hr-cobalt-blue" />
+                                      <br />
+                                      <div className="row">
+                                    <form onSubmit={handleFormSubmit}>
                                       <div className="form-group">
-                                        {employeeData.SecondaryContactNum ? (
-                                          <>
-                                            <label>Update New Contact Number</label>
-                                            <div className="d-flex align-items-center">
-                                              <input 
-                                                type="tel" 
-                                                className="form-control mr-2" 
-                                                value={employeeData.newContactNumber} 
-                                                placeholder="update contact number" 
-                                                name="newContactNumber" 
-                                                onChange={handleInputChange} 
-                                              />
-                                              <button type="submit" className="btn btn-primary">Update</button>
-                                            </div>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <label>Add New Contact Number</label>
-                                            <div className="d-flex align-items-center">
-                                              <input 
-                                                type="tel" 
-                                                className="form-control mr-2" 
-                                                value={employeeData.newContactNumber} 
-                                                placeholder="add new contact number" 
-                                                name="newContactNumber" 
-                                                onChange={handleInputChange} 
-                                              />
-                                              <button type="submit" className="btn btn-primary">Add</button>
-                                            </div>
-                                          </>
-                                        )}
+                                        <label>Update Contact Number</label>
+                                        <div className="d-flex align-items-center">
+                                          <input
+                                            type="tel"
+                                            className={`form-control mr-2 ${contactError && 'is-invalid'}`}
+                                            value={employeeData.ContactNumber}
+                                            placeholder="update contact number"
+                                            name="ContactNumber"
+                                            onChange={handleInputChange}
+                                          />
+                                          {contactError && <div className="invalid-feedback">{contactError}</div>}
+                                          <button type="submit" className="btn btn-primary">
+                                            <i className="fas fa-pencil-alt"></i>
+                                          </button>
+                                        </div>
                                       </div>
                                     </form>
-                                  </div>
-
+                                    {employeeData.SecondaryContactNum && employeeData.SecondaryContactNum !== 'N/A' && (
+                                      <div className="col-md-4">
+                                        <div>
+                                          <label>Secondary Contact Number</label>
+                                          <span className="form-control">{employeeData.SecondaryContactNum}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div className="col-md-4">
+                                      <form onSubmit={handleAddContactForm}>
+                                        <div className="form-group">
+                                          {employeeData.SecondaryContactNum ? (
+                                            <>
+                                              <label>Update Secondary Contact Number</label>
+                                              <div className="d-flex align-items-center">
+                                                <input
+                                                  type="tel"
+                                                  className={`form-control mr-2 ${newContactError && 'is-invalid'}`}
+                                                  value={employeeData.newContactNumber}
+                                                  placeholder="update contact number"
+                                                  name="newContactNumber"
+                                                  onChange={handleInputChange}
+                                                />
+                                                {newContactError && <div className="invalid-feedback">{newContactError}</div>}
+                                                <button type="submit" className="btn btn-primary">
+                                                  <i className="fas fa-pencil-alt"></i>
+                                                </button>
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <label>Add New Contact Number</label>
+                                              <div className="d-flex align-items-center">
+                                                <input
+                                                  type="tel"
+                                                  className={`form-control mr-2 ${newContactError && 'is-invalid'}`}
+                                                  value={employeeData.newContactNumber}
+                                                  placeholder="add new contact number"
+                                                  name="newContactNumber"
+                                                  onChange={handleInputChange}
+                                                />
+                                                {newContactError && <div className="invalid-feedback">{newContactError}</div>}
+                                                <button type="submit" className="btn btn-primary">
+                                                  <i className="fas fa-plus"></i>
+                                                </button>
+                                              </div>
+                                            </>
+                                          )}
+                                        </div>
+                                      </form>
+                                    </div>
                                   </div>
                                     <hr/>
-                          <form onSubmit={handleAddressFormSubmit}>
-                          {/* <div className='card-body'> */}
-                          <h5 className='text-primary'>Address Details</h5>
-                                <hr className="hr-cobalt-blue"/>
-                                <br/>
-                                <div className="row justify-content-center">
-                                    {/* <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label>Employee ID</label>
-                                            <span className="form-control">{Array.isArray(employeeData.EmployeeId) ? employeeData.EmployeeId[0] : employeeData.EmployeeId}</span>
-                                        </div>
-                                    </div> */}
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="houseNumber">House Number</label>
-                                            <input type="text" className="form-control"  placeholder="enter house number" value={employeeData.HouseNumber} name="HouseNumber" onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="completeAddress">Complete Address</label>
-                                            <input type="text" className="form-control" placeholder="Enter Complete Address" name="CompleteAddress" value={employeeData.CompleteAddress} onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="row justify-content-center">
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="brgy">Barangay</label>
-                                            <input type="text" className="form-control" placeholder="Enter Barangay" name="Barangay" value={employeeData.Barangay} onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="cityMunicipality">City / Municipality</label>
-                                            <input type="text" className="form-control" placeholder="Enter City/Municipality" name="CityMunicipality" value={employeeData.CityMunicipality} onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                      <div className="form-group">
-                                        <label htmlFor="province">Province</label>
-                                        <select className="form-control" value={employeeData.Province} name="Province" onChange={handleInputChange}>
-                                          <option value="">Select Province</option>
-                                          <option value="Abra">Abra</option>
-                                          <option value="Agusan del Norte">Agusan del Norte</option>
-                                          <option value="Agusan del Sur">Agusan del Sur</option>
-                                          <option value="Aklan">Aklan</option>
-                                          <option value="Albay">Albay</option>
-                                          <option value="Antique">Antique</option>
-                                          <option value="Apayao">Apayao</option>
-                                          <option value="Aurora">Aurora</option>
-                                          <option value="Basilan">Basilan</option>
-                                          <option value="Bataan">Bataan</option>
-                                          <option value="Batanes">Batanes</option>
-                                          <option value="Batangas">Batangas</option>
-                                          <option value="Benguet">Benguet</option>
-                                          <option value="Biliran">Biliran</option>
-                                          <option value="Bohol">Bohol</option>
-                                          <option value="Bukidnon">Bukidnon</option>
-                                          <option value="Bulacan">Bulacan</option>
-                                          <option value="Cagayan">Cagayan</option>
-                                          <option value="Camarines Norte">Camarines Norte</option>
-                                          <option value="Agusan del Norte">Agusan del Norte</option>
-                                        </select>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="row justify-content-center">
-                                    <div className="col-md-4">
-                                      <div className="form-group">
-                                        <label htmlFor="region">Region</label>
-                                        <select className="form-control" value={employeeData.Region} name="Region" onChange={handleRegionChange}>
-                                          <option value="">Select Region</option>
-                                          <option value="Ilocos Region">Ilocos Region</option>
-                                          <option value="Cagayan Valley">Cagayan Valley</option>
-                                          <option value="Central Luzon">Central Luzon</option>
-                                          <option value="CALABARZON">CALABARZON</option>
-                                          <option value="Bicol Region">Bicol Region</option>
-                                          <option value="Western Visayas">Western Visayas</option>
-                                          <option value="Central Visayas">Central Visayas</option>
-                                          <option value="Eastern Visayas">Eastern Visayas</option>
-                                          <option value="Zamboanga Peninsula">Zamboanga Peninsula</option>
-                                          <option value="Northern Mindanao">Northern Mindanao</option>
-                                          <option value="Davao Region">Davao Region</option>
-                                          <option value="SOCCSKSARGEN">SOCCSKSARGEN</option>
-                                          <option value="Caraga Region">Caraga Region</option>
-                                          <option value="Cordillera Administrative Region">Cordillera Administrative Region</option>
-                                          <option value="National Capital Region">National Capital Region</option>
-                                          <option value="MIMAROPA">MIMAROPA</option>
-                                          <option value="Bangsamoro Autonomous Region in Muslim Mindanao">Bangsamoro Autonomous Region in Muslim Mindanao</option>
-                                        </select>
-                                      </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="country">Country</label>
-                                            <input type="text" className="form-control" placeholder="Enter Country" name="Country" value={employeeData.Country} onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                              <div className="form-group">
-                                              <label htmlFor="zipcode">Zip Code</label>
-                                              <input type="text" className="form-control" placeholder="Enter Zip Code" name="ZipCode" value={employeeData.ZipCode} onChange={handleInputChange} />
-                                              </div>
+                                      <form onSubmit={handleAddressFormSubmit}>
+                                        <h5 className='text-primary'>Address Details</h5>
+                                        <hr className="hr-cobalt-blue"/>
+                                        <br/>
+                                        <div className="row">
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="houseNumber">House Number</label>
+                                              <input type="text" className="form-control" placeholder="enter house number" value={employeeData.HouseNumber} name="HouseNumber" onChange={handleInputChange} />
                                             </div>
-                                </div>
-                                <div className="row justify-content-center">
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="landmark">Land Mark</label>
-                                            <input type="text" className="form-control" placeholder="Enter Land Mark" name="Landmark" value={employeeData.Landmark} onChange={handleInputChange} />
+                                          </div>
+                                          <div className="col-md-8">
+                                            <div className="form-group">
+                                              <label htmlFor="completeAddress">Complete Address</label>
+                                              <input type="text" className="form-control" placeholder="Enter Complete Address" name="CompleteAddress" value={employeeData.CompleteAddress} onChange={handleInputChange} />
+                                            </div>
+                                          </div>
                                         </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label htmlFor="isPermanent">is Permanent</label>
-                                            <select className="form-control" value={employeeData.IsPermanent} name="IsPermanent" onChange={handleInputChange}>
+                                        <div className="row justify-content-center">
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="country">Country</label>
+                                              <select
+                                                id="countryDropdown"
+                                                className="form-control"
+                                                value={employeeData.Country || ""}
+                                                name="Country"
+                                                onChange={handleCountryChange}
+                                              >
+                                                {countriesWithExisting.map(country => (
+                                                  <option key={country} value={country}>{country}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="region">Region</label>
+                                              <select
+                                                id="regionDropdown"
+                                                className="form-control"
+                                                value={employeeData.Region || ""}
+                                                name="Region"
+                                                onChange={handleRegionChange}
+                                              >
+                                                {regionsWithExisting.map(region => (
+                                                  <option key={region} value={region}>{region}</option>
+                                                ))}
+                                              </select>
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="province">Province</label>
+                                              <select
+                                                id="provinceDropdown"
+                                                className="form-control"
+                                                value={employeeData.Province || ""}
+                                                name="Province"
+                                                onChange={handleProvinceChange}
+                                              >
+                                                {provincesWithExisting.map(province => (
+                                                  <option key={province} value={province}>{province}</option>
+                                                ))}
+                                              </select>
+                                              {addressErrors.Province && <div className="text-danger">{addressErrors.Province}</div>}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="row justify-content-center">
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="cityMunicipality">City / Municipality</label>
+                                              <select
+                                                id="cityDropdown"
+                                                className="form-control"
+                                                value={employeeData.CityMunicipality || ""}
+                                                name="CityMunicipality"
+                                                onChange={handleCityChange}
+                                              >
+                                                {citiesWithExisting.map(city => (
+                                                  <option key={city} value={city}>{city}</option>
+                                                ))}
+                                              </select>
+                                              {addressErrors.CityMunicipality && <div className="text-danger">{addressErrors.CityMunicipality}</div>}
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="brgy">Barangay</label>
+                                              <input type="text" className="form-control" placeholder="Enter Barangay" name="Barangay" value={employeeData.Barangay} onChange={handleInputChange} />
+                                              {addressErrors.Barangay && <div className="text-danger">{addressErrors.Barangay}</div>}
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="zipcode">Zip Code</label>
+                                              <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="Enter Zip Code"
+                                                name="ZipCode"
+                                                value={employeeData.ZipCode}
+                                                onChange={handleInputChange}
+                                              />
+                                              {addressErrors.ZipCode && <div className="text-danger">{addressErrors.ZipCode }</div>}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="row justify-content-center">
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="landmark">Land Mark</label>
+                                              <input type="text" className="form-control" placeholder="Enter Land Mark" name="Landmark" value={employeeData.Landmark} onChange={handleInputChange} />
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
+                                              <label htmlFor="isPermanent">is Permanent</label>
+                                              <select className="form-control" value={employeeData.IsPermanent} name="IsPermanent" onChange={handleInputChange}>
                                                 <option value={true}>Yes</option>
                                                 <option value={false}>No</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                              <div className="form-group">
+                                              </select>
+                                            </div>
+                                          </div>
+                                          <div className="col-md-4">
+                                            <div className="form-group">
                                               <label htmlFor="isEmergency">is Emergency</label>
                                               <select className="form-control" value={employeeData.IsEmergency} name="IsEmergency" onChange={handleInputChange}>
                                                 <option value={true}>Yes</option>
                                                 <option value={false}>No</option>
-                                            </select>
-                                              </div>
+                                              </select>
                                             </div>
-                                {/* </div> */}
-                                </div>
-                                <button type="submit" className="btn btn-primary d-block mx-auto">Save Changes</button>
-                            </form>
+                                          </div>
+                                        </div>
+                                        <button type="submit" className="btn btn-primary d-block mx-auto">Save Changes</button>
+                                      </form>
                             <hr/>
                             <h5 className='text-primary'>Emergency Contact Details</h5>
                                 <hr className="hr-cobalt-blue"/>
@@ -3439,64 +3846,119 @@ const handleAddCompBen = async (e) => {
                                     <div className="col-md-4">
                                       <div className="form-group">
                                           <label>Phone Number</label>
-                                          <input type="text" className="form-control" value={employeeData.EmContactPhoneNumber} placeholder="Enter contact number" name="EmContactPhoneNumber" onChange={handleInputChange} />
+                                          <input 
+                                            type="text" 
+                                            className={`form-control ${EMphoneError ? 'is-invalid' : ''}`} 
+                                            value={employeeData.EmContactPhoneNumber} 
+                                            placeholder="Enter contact number" 
+                                            name="EmContactPhoneNumber" 
+                                            onChange={handleInputChange} 
+                                        />
+                                        {EMphoneError && <div className="invalid-feedback">{EMphoneError}</div>}
                                       </div>
                                   </div>
                                   <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label>Complete Address</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactCompleteAddress} placeholder="Enter complete address" name="EmContactCompleteAddress" onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    </div>
-                                    <div className="row justify-content-center">
-                                    <div className="col-md-4">
                                         <div className="form-group">
                                             <label>House Number</label>
                                             <input type="text" className="form-control" value={employeeData.EmContactHouseNo} placeholder="Enter house number" name="EmContactHouseNo" onChange={handleInputChange} />
                                         </div>
                                     </div>
-                                    <div className="col-md-4">
+                                </div>
+                                <div className="row">
+                                    <div className="col-md-12">
                                         <div className="form-group">
-                                            <label>Barangay</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactBarangay} placeholder="Enter Barangay" name="EmContactBarangay" onChange={handleInputChange} />
+                                            <label>Complete Address</label>
+                                            <input type="text" className="form-control" value={employeeData.EmContactCompleteAddress} placeholder="Enter complete address" name="EmContactCompleteAddress" onChange={handleInputChange} />
                                         </div>
                                     </div>
-                                  <div className="col-md-4">
+                                </div>
+                                <div className="row justify-content-center">
+                                <div className="col-md-4">
                                         <div className="form-group">
-                                            <label>City / Municipality</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactCityMunicipality} placeholder="Enter city/municipality" name="EmContactCityMunicipality" onChange={handleInputChange} />
-                                        </div>
-                                    </div>
-                                    </div>
-                                    <div className="row justify-content-center">
-                                    <div className="col-md-4">
-                                        <div className="form-group">
-                                            <label>Province</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactProvince} placeholder="Enter province" name="EmContactProvince" onChange={handleInputChange} />
+                                            <label>Country</label>
+                                            <select
+                                                id="countryDropdown"
+                                                className="form-control"
+                                                value={employeeData.EmContactCountry || ""}
+                                                name="EmContactCountry"
+                                                onChange={handleECCountryChange}
+                                              >
+                                                {ECcountriesWithExisting.map(country => (
+                                                  <option key={country} value={country}>{country}</option>
+                                                ))}
+                                              </select>
                                         </div>
                                     </div>
                                     <div className="col-md-4">
                                         <div className="form-group">
                                             <label>Region</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactRegion} placeholder="Enter Region" name="EmContactRegion" onChange={handleInputChange} />
+                                             <select
+                                                id="regionDropdown"
+                                                className="form-control"
+                                                value={employeeData.EmContactRegion || ""}
+                                                name="EmContactRegion"
+                                                onChange={handleECRegionChange}
+                                              >
+                                                {ECregionsWithExisting.map(region => (
+                                                  <option key={region} value={region}>{region}</option>
+                                                ))}
+                                              </select>
+                                              {ECaddressErrors.EmContactRegion && <div className="text-danger">{ECaddressErrors.EmContactRegion}</div>}
                                         </div>
                                     </div>
-                                  <div className="col-md-4">
+                                    <div className="col-md-4">
                                         <div className="form-group">
-                                            <label>Country</label>
-                                            <input type="text" className="form-control" value={employeeData.EmContactCountry} placeholder="Enter Country" name="EmContactCountry" onChange={handleInputChange} />
+                                            <label>Province</label>
+                                            <select
+                                                id="provinceDropdown"
+                                                className="form-control"
+                                                value={employeeData.EmContactProvince || ""}
+                                                name="EmContactProvince"
+                                                onChange={handleECProvinceChange}
+                                              >
+                                                {ECprovincesWithExisting.map(province => (
+                                                  <option key={province} value={province}>{province}</option>
+                                                ))}
+                                              </select>
+                                              {ECaddressErrors.EmContactProvince && <div className="text-danger">{ECaddressErrors.EmContactProvince}</div>}
+                                       </div>
+                                    </div>
+                                </div>
+                                  <div className="row justify-content-center">
+                                  <div className="col-md-4">
+                                    <div className="form-group">
+                                              <label htmlFor="ECcityMunicipality">City / Municipality</label>
+                                              <select
+                                                id="municipalityDropdown"
+                                                className="form-control"
+                                                value={employeeData.EmContactCityMunicipality || ""}
+                                                name="EmContactCityMunicipality"
+                                                onChange={handleECCityChange}
+                                              >
+                                                {ECcitiesWithExisting.map(municipality => (
+                                                  <option key={municipality} value={municipality}>{municipality}</option>
+                                                ))}
+                                              </select>
+                                              {ECaddressErrors.EmContactCityMunicipality && <div className="text-danger">{ECaddressErrors.EmContactCityMunicipality}</div>}
+                                            </div>
+                                    </div>
+                                    <div className="col-md-4">
+                                        <div className="form-group">
+                                            <label>Barangay</label>
+                                            <input type="text" className="form-control" value={employeeData.EmContactBarangay} placeholder="Enter Barangay" name="EmContactBarangay" onChange={handleInputChange} />
+                                            {ECaddressErrors.EmContactBarangay && <div className="text-danger">{ECaddressErrors.EmContactBarangay}</div>}
                                         </div>
                                     </div>
-                                    </div>
-                                    <div className="row justify-content-center">
                                     <div className="col-md-4">
                                         <div className="form-group">
                                             <label>Zip Code</label>
                                             <input type="text" className="form-control" value={employeeData.EmContactZipcode} placeholder="Enter zip code" name="EmContactZipcode" onChange={handleInputChange} />
+                                            {ECaddressErrors.EmContactZipcode && <div className="text-danger">{ECaddressErrors.EmContactZipcode}</div>}
                                         </div>
                                     </div>
-                                    <div className="col-md-4">
+                                  </div>
+                                  <div className="row">
+                                  <div className="col-md-4">
                                         <div className="form-group">
                                             <label>Land Mark</label>
                                             <input type="text" className="form-control" value={employeeData.EmContactLandMark} placeholder="Enter landmark" name="EmContactLandMark" onChange={handleInputChange} />
@@ -3511,7 +3973,7 @@ const handleAddCompBen = async (e) => {
                                             </select>
                                         </div>
                                     </div>
-                                  <div className="col-md-4">
+                                    <div className="col-md-4">
                                         <div className="form-group">
                                             <label>Is Emergency</label>
                                             <select className="form-control" value={employeeData.Is_Emergency} name="Is_Emergency" onChange={handleInputChange}>
@@ -3519,9 +3981,9 @@ const handleAddCompBen = async (e) => {
                                                 <option value={false}>No</option>
                                             </select>
                                         </div>
-                                    </div>
-                                    </div>
-                                    </div>
+                                      </div>
+                                   </div>
+                                </div>
                                 <br/>
                                 <button type="submit" className="btn btn-primary d-block mx-auto">Save Changes</button>
                             </form>
@@ -3578,13 +4040,29 @@ const handleAddCompBen = async (e) => {
                                     <div className="col-md-4">
                                         <div className="form-group">
                                             <label htmlFor="dateFrom">Date From</label>
-                                            <input type="text" className="form-control" value={employeeData.DateFrom} placeholder="Enter date From" name="DateFrom" onChange={handleInputChange} />
+                                            {/* <input type="text" className="form-control" value={employeeData.DateFrom} placeholder="Enter date From" name="DateFrom" onChange={handleInputChange} /> */}
+                                            <input
+                                              type="date"
+                                              className="form-control"
+                                              value={employeeData.DateFrom ? new Date(employeeData.DateFrom).toISOString().substr(0, 10) : ''}
+                                              placeholder="Date From"
+                                              name="DateFrom"
+                                              onChange={handleInputChange}
+                                            />
                                         </div>
                                     </div>
                                     <div className="col-md-4">
                                         <div className="form-group">
                                         <label htmlFor="dateTo">Date To</label>
-                                            <input type="text" className="form-control" value={employeeData.DateTo} placeholder="Enter date To" name="DateTo" onChange={handleInputChange} />
+                                            {/* <input type="text" className="form-control" value={employeeData.DateTo} placeholder="Enter date To" name="DateTo" onChange={handleInputChange} /> */}
+                                            <input
+                                              type="date"
+                                              className="form-control"
+                                              value={employeeData.DateTo ? new Date(employeeData.DateTo).toISOString().substr(0, 10) : ''}
+                                              placeholder="Date To"
+                                              name="BirthdDateToate"
+                                              onChange={handleInputChange}
+                                            />
                                         </div>
                                     </div>
                                     <div className="col-md-4">
@@ -3616,16 +4094,19 @@ const handleAddCompBen = async (e) => {
                       </div>
                       <div className="tab-pane fade" id="dependent" role="tabpanel" aria-labelledby="dependent-tab">
                         {/* Dependent Form */}
-                           {/* <div className="container">  */}
-                           {/* <div className="card"> */}
                                 <div className="card-body d-flex justify-content-between align-items-center">
                                   {/* New Record button */}
-                                  <button className="btn btn-xs btn-primary mr-2" onClick={handleShowAddModal}>
+                                  <button className="btn btn-xs btn-primary mr-2" onClick={handleShowAddDependentModal}>
                                     <i className="fas fa-plus"></i> New Record
                                   </button>
 
                                   {/* Search form */}
                                   <form className="form-inline ml-auto">
+                                  <div className="input-group-append">
+                                        <button className="btn btn-primary" type="button">
+                                          <i className="fas fa-search fa-sm"></i>
+                                        </button>
+                                      </div>
                                     <div className="input-group">
                                       <input
                                         type="text"
@@ -3634,16 +4115,11 @@ const handleAddCompBen = async (e) => {
                                         value={searchQuery}
                                         onChange={handleSearchChange}
                                       />
-                                      <div className="input-group-append">
-                                        <button className="btn btn-primary" type="button">
-                                          <i className="fas fa-search fa-sm"></i>
-                                        </button>
-                                      </div>
                                     </div>
                                   </form>
                                 </div>
                               {/* Add Dependent Modal */}
-                              <Modal show={showAddModal} onHide={handleCloseAddModal} dialogClassName="custom-modal">
+                              <Modal show={showAddDependentModal} onHide={handleCloseAddModal} dialogClassName="custom-modal">
                                   <Modal.Header>
                                       <Modal.Title>Add New Dependent</Modal.Title>
                                       <Button variant="default" onClick={handleCloseAddModal}> X </Button>
@@ -3797,7 +4273,6 @@ const handleAddCompBen = async (e) => {
                                                               <div className="form-group">
                                                                   <label >Full Name</label>
                                                                   <input type="text" className="form-control" placeholder="enter dependent full name" value={selectedDependent?.FullName || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, FullName: e.target.value })} />
-                                                                  {/* <input type="text" className="form-control" value={employeeData.FullName} placeholder="enter dependent full name" name="FullName" onChange={handleInputChange} /> */}
                                                               </div>
                                                           </div>
                                                           <div className="col-md-4">
@@ -3817,7 +4292,17 @@ const handleAddCompBen = async (e) => {
                                                           <div className="col-md-4">
                                                               <div className="form-group">
                                                                   <label>Date of Birth</label>
-                                                                  <input type="text" className="form-control" placeholder="enter date of birth" value={selectedDependent?.DateOfBirth || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, DateOfBirth: e.target.value })} />
+                                                                  <input
+                                                                    type="date"
+                                                                    className="form-control"
+                                                                    value={selectedDependent && selectedDependent.DateOfBirth && isValidDate(selectedDependent.DateOfBirth) ? new Date(selectedDependent.DateOfBirth).toISOString().substr(0, 10) : ''}
+                                                                    placeholder="Date Of Birth"
+                                                                    onChange={(e) => {
+                                                                      const newValue = e.target.value !== '' ? e.target.value : null;
+                                                                      setSelectedDependent({ ...selectedDependent, DateOfBirth: newValue });
+                                                                    }}
+                                                                  />
+                                                                  {/* <input type="date" className="form-control" placeholder="enter date of birth" value={selectedDependent?.DateOfBirth || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, DateOfBirth: e.target.value })} /> */}
                                                               </div>
                                                           </div>
                                                           <div className="col-md-4">
@@ -3863,7 +4348,17 @@ const handleAddCompBen = async (e) => {
                                                           <div className="col-md-4">
                                                                     <div className="form-group">
                                                                     <label >Beneficiary Date</label>
-                                                                    <input type="text" className="form-control" placeholder="Enter Beneficiary Date" value={selectedDependent?.BeneficiaryDate || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, BeneficiaryDate: e.target.value })} />
+                                                                   <input
+                                                                    type="date"
+                                                                    className="form-control"
+                                                                    value={selectedDependent && selectedDependent.BeneficiaryDate && isValidDate(selectedDependent.BeneficiaryDate) ? new Date(selectedDependent.BeneficiaryDate).toISOString().substr(0, 10) : ''}
+                                                                    placeholder="Beneficiary Date"
+                                                                    onChange={(e) => {
+                                                                      const newValue = e.target.value !== '' ? e.target.value : null;
+                                                                      setSelectedDependent({ ...selectedDependent, BeneficiaryDate: newValue });
+                                                                    }}
+                                                                  />
+                                                                    {/* <input type="date" className="form-control" placeholder="Enter Beneficiary Date" value={selectedDependent?.BeneficiaryDate || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, BeneficiaryDate: e.target.value })} /> */}
                                                                     </div>
                                                                   </div>
                                                           <div className="col-md-4">
@@ -3883,7 +4378,17 @@ const handleAddCompBen = async (e) => {
                                                           <div className="col-md-4">
                                                               <div className="form-group">
                                                                   <label >Insurance Date</label>
-                                                                  <input type="text" className="form-control" placeholder="Enter Insurance Date" value={selectedDependent?.InsuranceDate || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, InsuranceDate: e.target.value })} />
+                                                                  <input
+                                                                    type="date"
+                                                                    className="form-control"
+                                                                    value={selectedDependent && selectedDependent.InsuranceDate && isValidDate(selectedDependent.InsuranceDate) ? new Date(selectedDependent.BeneficiaryDate).toISOString().substr(0, 10) : ''}
+                                                                    placeholder="Beneficiary Date"
+                                                                    onChange={(e) => {
+                                                                      const newValue = e.target.value !== '' ? e.target.value : null;
+                                                                      setSelectedDependent({ ...selectedDependent, InsuranceDate: newValue });
+                                                                    }}
+                                                                  />
+                                                                  {/* <input type="text" className="form-control" placeholder="Enter Insurance Date" value={selectedDependent?.InsuranceDate || ''} onChange={(e) => setSelectedDependent({ ...selectedDependent, InsuranceDate: e.target.value })} /> */}
                                                               </div>
                                                           </div>
                                                           <div className="col-md-4">
@@ -3952,6 +4457,7 @@ const handleAddCompBen = async (e) => {
                                           <th scope="col">Company Paid</th>
                                           <th scope="col">HMO Provider</th>
                                           <th scope="col">HMO Policy Number</th>
+                                          <th scope="col">Timestamp</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -3960,11 +4466,8 @@ const handleAddCompBen = async (e) => {
                             <tr key={index}>
                               <td>
                               <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditModal(dependent)}>
-                                              <i className="fas fa-pencil-alt"></i>
-                                            </button>
-                                {/* <button className="btn btn-xs btn-primary mr-2" onClick={handleShowEditModal}>
-                                  <i className="fas fa-pencil-alt"></i>Edit
-                                </button> */}
+                                      <i className="fas fa-pencil-alt"></i>
+                              </button>
                                 </td>
                               <td>{dependent.FullName}</td>
                               <td>{dependent.PhoneNum}</td>
@@ -3984,6 +4487,7 @@ const handleAddCompBen = async (e) => {
                               <td>{dependent.CompanyPaid}</td>
                               <td>{dependent.HMOProvider}</td>
                               <td>{dependent.HMOPolicyNumber}</td>
+                              <td>{dependent.CreatedAt}</td>
                             </tr>
                           ))
                         ) : (
@@ -3992,40 +4496,20 @@ const handleAddCompBen = async (e) => {
                           </tr>
                         )}
                       </tbody>
-                                    </table>
-                                  </div>
-                           </div>
-                        {/* </div> */}
-                        {/* </div>  */}
-                      <br/>
+                     </table>
+                    </div>
+                  </div>
+                <br/>
                       </div>
                       <div className="tab-pane fade" id="compBen" role="tabpanel" aria-labelledby="compBen-tab">
                                 <div className="card-body d-flex justify-content-between align-items-center">
                                   {/* New Record button */}
-                                  <button className="btn btn-xs btn-primary mr-2" onClick={handleShowAddModal}>
+                                  <button className="btn btn-xs btn-primary mr-2" onClick={handleShowAddCompBenModal}>
                                     <i className="fas fa-plus"></i> New Record
                                   </button>
-
-                                  {/* Search form */}
-                                  <form className="form-inline ml-auto">
-                                    <div className="input-group">
-                                      <input
-                                        type="text"
-                                        className="form-control bg-light border-0 small"
-                                        placeholder="Search by Name"
-                                        value={searchQuery}
-                                        onChange={handleSearchChange}
-                                      />
-                                      <div className="input-group-append">
-                                        <button className="btn btn-primary" type="button">
-                                          <i className="fas fa-search fa-sm"></i>
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </form>
                                 </div>
                               {/* Add CompBen Modal */}
-                              <Modal show={showAddModal} onHide={handleCloseAddModal} dialogClassName="custom-modal">
+                              <Modal show={showAddCompBenModal} onHide={handleCloseAddModal} dialogClassName="custom-modal">
                                   <Modal.Header>
                                       <Modal.Title>Add Compensation Benefit</Modal.Title>
                                       <Button variant="default" onClick={handleCloseAddModal}> X </Button>
@@ -4288,7 +4772,6 @@ const handleAddCompBen = async (e) => {
                                           </div>
                                           <br/>
                                         </form>
-
                                   </Modal.Body>
                                   <Modal.Footer>
                                       <Button variant="secondary" onClick={handleCloseAddModal}>
@@ -4299,11 +4782,11 @@ const handleAddCompBen = async (e) => {
                                       </Button>
                                   </Modal.Footer>
                               </Modal>
-                              {/* Edit Dependent Modal */}
-                            <Modal show={!!selectedCompBen} onHide={handleCloseEditModal} dialogClassName="custom-modal">
+                              {/* Edit Compensation Benefit Modal */}
+                            <Modal show={!!selectedCompBen} onHide={handleCloseEditCompBenModal} dialogClassName="custom-modal">
                               <Modal.Header>
                                 <Modal.Title>Update CompBen Records</Modal.Title>
-                                <Button variant="default" onClick={handleCloseEditModal}> X </Button>
+                                <Button variant="default" onClick={handleCloseEditCompBenModal}> X </Button>
                               </Modal.Header>
                               <Modal.Body>
                                       {/*  edit compensation benefits form*/}
@@ -4847,18 +5330,18 @@ const handleAddCompBen = async (e) => {
 
                                   </Modal.Body>
                                   <Modal.Footer>
-                                      <Button variant="secondary" onClick={handleCloseEditModal}>
+                                      <Button variant="secondary" onClick={handleCloseEditCompBenModal}>
                                           Close
                                       </Button>
-                                      <Button variant="primary" onClick={handleDependentFormSubmit}>
+                                      <Button variant="primary" onClick={handleEditCompBenFormSubmit}>
                                           Save Changes
                                       </Button>
                                   </Modal.Footer>
                               </Modal>
                           {/* </div> */}
-                                 {/* Dependent Table */}
+                                 {/* Compensation Table */}
                                  <div className='card-body'>
-                                {/* <div className="card-body"> */}
+                                {/* <div classN ame="card-body"> */}
                                   <div className="table-responsive">
                                     <table className="table">
                                       <thead>
@@ -4875,11 +5358,13 @@ const handleAddCompBen = async (e) => {
                                         <th scope="col">Leave Days</th>
                                         <th scope="col">Laundry Allowance</th>
                                         <th scope="col">Comm Allowance</th>
+                                        <th scope="col">Comm Allowance Type</th>
                                         <th scope="col">Cash Gift</th>
                                         <th scope="col">Medical Insurance</th>
                                         <th scope="col">Free HMO Dependent</th>
                                         <th scope="col">MBL</th>
                                         <th scope="col">Life Insurance</th>
+                                        <th scope="col">Beneficiaries</th>
                                         <th scope="col">Personal Accident Insurance Benefit</th>
                                         <th scope="col">PWD ID Number</th>
                                         <th scope="col">Tendopay Registered</th>
@@ -4895,36 +5380,36 @@ const handleAddCompBen = async (e) => {
                                         <th scope="col">Stat PHIC Number</th>
                                         <th scope="col">Stat PHIC Monthly Contribution</th>
                                         <th scope="col">Stat TIN Number</th>
+                                        <th scope="col">Created at</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                        {filteredDependents.length > 0 ? (
-                          filteredDependents.map((dependent, index) => (
+                        {filteredCompBen.length > 0 ? (
+                          filteredCompBen.map((compBen, index) => (
                             <tr key={index}>
                               <td>
-                              <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditModal(compBen)}>
+                              <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
                                               <i className="fas fa-pencil-alt"></i>
-                                            </button>
-                                {/* <button className="btn btn-xs btn-primary mr-2" onClick={handleShowEditModal}>
-                                  <i className="fas fa-pencil-alt"></i>Edit
-                                </button> */}
+                              </button>
                                 </td>
-                                <td>{compBen.Salary}</td>
-                                <td>{compBen.DailyEquivalent}</td>
-                                <td>{compBen.MonthlyEquivalent}</td>
-                                <td>{compBen.AnnualEquivalent}</td>
-                                <td>{compBen.RiceMonthly}</td>
-                                <td>{compBen.RiceAnnual}</td>
-                                <td>{compBen.RiceDifferentialAnnual}</td>
-                                <td>{compBen.UniformAnnual}</td>
+                                <td>₱{compBen.Salary}</td>  
+                                <td>₱{compBen.DailyEquivalent}</td> 
+                                <td>₱{compBen.MonthlyEquivalent}</td>
+                                <td>₱{compBen.AnnualEquivalent}</td>
+                                <td>₱{compBen.RiceMonthly}</td>
+                                <td>₱{compBen.RiceAnnual}</td>
+                                <td>₱{compBen.RiceDifferentialAnnual}</td>
+                                <td>₱{compBen.UniformAnnual}</td>
                                 <td>{compBen.LeaveDays}</td>
-                                <td>{compBen.LaundryAllowance}</td>
-                                <td>{compBen.CommAllowance}</td>
-                                <td>{compBen.CashGift}</td>
-                                <td>{compBen.MedicalInsurance}</td>
+                                <td>₱{compBen.LaundryAllowance}</td>
+                                <td>₱{compBen.CommAllowance}</td>
+                                <td>{compBen.CommAllowanceType}</td>
+                                <td>₱{compBen.CashGift}</td>
+                                <td>₱{compBen.MedicalInsurance}</td>
                                 <td>{compBen.FreeHMODependent}</td>
-                                <td>{compBen.MBL}</td>
-                                <td>{compBen.LifeInsurance}</td>
+                                <td>₱{compBen.MBL}</td>
+                                <td>₱{compBen.LifeInsurance}</td>
+                                <td>{compBen.Beneficiaries}</td>
                                 <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
                                 <td>{compBen.PWDIDNumber}</td>
                                 <td>{compBen.TendopayRegistered}</td>
@@ -4937,7 +5422,10 @@ const handleAddCompBen = async (e) => {
                                 <td>{compBen.Stat_SSSMonthlyContribution}</td>
                                 <td>{compBen.Stat_PagIbigNumber}</td>
                                 <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
+                                <td>{compBen.Stat_PHICNumber}</td>
+                                <td>{compBen.Stat_PHICMonthlyContribution}</td>
                                 <td>{compBen.Stat_TINNumber}</td>
+                                <td>{compBen.CreatedAt}</td>
                             </tr>
                           ))
                         ) : (
@@ -4949,21 +5437,60 @@ const handleAddCompBen = async (e) => {
                                     </table>
                                   </div>
                            </div>
-                        {/* </div> */}
-                        {/* </div>  */}
                       <br/>
                       </div>
+                      <div className='tab-pane fade' id='history' role='tabpanel' aria-labelledby='history-tab'>
+                         {/* History Table */}
+                         <div className='card-body'>
+                          <div className="table-responsive">
+                            <table className="table">
+                              <thead>
+                                <tr>
+                                  <th scope="col">Employee ID</th>
+                                  <th scope="col">Employee Name</th>
+                                  <th scope="col">Field Name</th>
+                                  <th scope="col">Action</th>
+                                  <th scope="col">Old</th>
+                                  <th scope="col">New</th>
+                                  <th scope="col">Remark</th>
+                                  <th scope="col">Date Created</th>
+                                  <th scope="col">Updated By</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredHistory.length > 0 ? (
+                                  filteredHistory.map((history, index) => (
+                                    <tr key={index}>
+                                    <td>{history.EmployeeId}</td>
+                                    <td>{toSentenceCase(history.EmployeeName)}</td>
+                                    <td>{toSentenceCase(history.FieldName)}</td>
+                                    <td>{toSentenceCase(history.Action)}</td>
+                                    <td>{history.OldValue}</td>
+                                    <td>{history.NewValue}</td>
+                                    <td>{toSentenceCase(history.Remarks)}</td>
+                                    <td>{history.DateCreated}</td>
+                                    <td>{toSentenceCase(history.UpdatedBy)}</td>
+                                    </tr>
+                                  ))
+                                ) : (
+                                  <tr>
+                                    <td colSpan="8">No history data available.</td>
+                                  </tr>
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
                   </div>
-                  
-              </div>
-              </div>
-              </div>
-              </div>
-              </div>
-              <Footer />
-          </div> 
+            </div>
+          </div>
+        </div>
       </div>
-      
+     </div>
+    <Footer />
+  </div>
+ </div>
   );
 }
 

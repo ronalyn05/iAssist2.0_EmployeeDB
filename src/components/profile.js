@@ -73,35 +73,6 @@ function Profile() {
       setErrorMessage('Error updating profile photo');
     }
   };
-
-  // const handleSubmit = async (event) => {
-  //   event.preventDefault();
-  //   try {
-  //     // // Retrieve userId from the textbox
-  //      const userId = document.getElementById('userId').value;
-  
-  //     const formData = new FormData();
-  //     formData.append('userId', userId); // Pass the userId to the backend
-  //     formData.append('profilePhoto', file);
-  
-  //     await axios.post('/api/updatePhoto', formData, {
-  //       headers: {
-  //         'Content-Type': 'multipart/form-data'
-  //       }
-  //     });
-  
-  //     // // After updating photo, fetch updated personal details
-  //     // fetchPersonalDetails();
-  //      // Show success message to the user
-  //      alert('Profile photo updated successfully!');
-
-  //      // Reload the page after showing the alert
-  //    window.location.reload();
-  //   } catch (err) {
-  //     console.error(err);
-  //     setErrorMessage('Error updating profile photo');
-  //   }
-  // };
   
   const handleChange = (event) => {
     setUserData({

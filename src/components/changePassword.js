@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 function ChangePassword() {
   const [formData, setFormData] = useState({
-    CurrentPassword: "",
+    // CurrentPassword: "",
     NewPassword: "",
     ConfirmPassword: ""
   });
@@ -17,10 +17,10 @@ function ChangePassword() {
   const handleSubmit = async (e) => {
     e.preventDefault();
   
-    if (!formData.currentPassword || !formData.newPassword) {
-      setErrorMessage("Please provide both current and new passwords.");
-      return;
-    }
+    // if (!formData.currentPassword || !formData.newPassword) {
+    //   setErrorMessage("Please provide both current and new passwords.");
+    //   return;
+    // }
   
     if (formData.newPassword !== formData.confirmPassword) {
       setErrorMessage("New password and confirm password must match.");
@@ -35,7 +35,7 @@ function ChangePassword() {
         },
         body: JSON.stringify({
           EmployeeId: sessionStorage.getItem('employeeId'),
-          CurrentPassword: formData.currentPassword,
+          // CurrentPassword: formData.currentPassword,
           NewPassword: formData.newPassword,
         }),
       });
@@ -95,7 +95,7 @@ function ChangePassword() {
                   />
                 </div>
                 <form className="user" onSubmit={handleSubmit}>
-                  <div className="form-group">
+                  {/* <div className="form-group">
                     <label>Current Password</label>
                     <input
                       type="password"
@@ -107,7 +107,7 @@ function ChangePassword() {
                       onChange={handleChange}
                       required
                     />
-                  </div>
+                  </div> */}
                   <div className="form-group">
                     <label>New Password</label>
                     <input
