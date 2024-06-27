@@ -1,6 +1,7 @@
+
 * CREATING OWN BRANCH NAME *
-*git branch
-*git branch branchNAME
+* git branch
+* git branch branchNAME
 
 * PUSH TO OWN BRANCH *
 * git branch
