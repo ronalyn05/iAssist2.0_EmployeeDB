@@ -574,18 +574,134 @@ const handleAddContactForm = async (e) => {
   };
 
 // Function to handle in updating the employee information
+// const handleFormEmpInfoSubmit = async (e) => {
+//   e.preventDefault(); // Prevent the default form submission
+
+//   // Validate HRANType is chosen
+//   if (!employeeData.HRANType) {
+//     alert('Please choose an HRANType before updating the employee information.');
+//     return;
+//   }
+//    // Validate Remarks before submission
+//    if (!validateRemarks()) {
+//     return;
+//   }
+//   try {
+//     // Fetch the current employee data
+//     const currentDataResponse = await fetch(`http://localhost:5000/getEmployeeInfo/${employeeId}`);
+//     if (!currentDataResponse.ok) {
+//       throw new Error('Failed to fetch current employee data');
+//     }
+//     const currentData = await currentDataResponse.json();
+
+//     // Store previous values for all the fields being updated
+//     const previousValues = { ...currentData };
+
+
+//     // Fetch call to update employee information
+//     const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
+//       method: 'PUT',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify(employeeData),
+//     });
+
+//     if (!response.ok) {
+//       throw new Error('Failed to update employee');
+//     }
+
+//     // Retrieve the name of the employee from employeeData
+//     const { FirstName, LastName } = employeeData;
+//     const employeeName = `${FirstName} ${LastName}`;
+
+//     // Compare initial employeeData with updated employeeData
+//     const updatedFields = [];
+//     Object.entries(employeeData).forEach(([key, value]) => {
+//       if (value !== initialEmployeeData[key]) {
+//         updatedFields.push(key);
+//       }
+//     });
+
+//     // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
+//     const filteredFields = updatedFields.filter(
+//       (field) => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName', 'EmContactCompleteAddress'].includes(field)
+//     );
+
+//     // Generate success message based on updated fields
+//     let successMessage;
+//     if (filteredFields.length === 0) {
+//       successMessage = `No employee information has been updated for ${employeeName}.`;
+//     } else {
+//       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
+//     }
+
+//     // Retrieve user's first name from session storage
+//     const updatedByFirstName = sessionStorage.getItem('firstName');
+//     const updatedByLastName = sessionStorage.getItem('lastName');
+//     const updatedByRole = sessionStorage.getItem('role');
+//     const updatedBy = `${updatedByRole} ${updatedByFirstName} ${updatedByLastName}`;
+
+//     // Insert into History table for each updated field
+//     for (const field of filteredFields) {
+
+//       const newValue = employeeData[field];
+//       if (newValue === undefined || newValue === null) {
+//         console.error(`Invalid value for field ${field}: ${newValue}`);
+//         continue;
+//       }
+
+//       const historyData = {
+//         EmployeeName: employeeName,
+//         Action: 'Update',
+//         FieldName: field,
+//         OldValue: previousValues[field] || 'N/A',
+//         NewValue: employeeData[field],
+//         DateCreated: new Date().toISOString(),
+//         UpdatedBy: updatedBy,
+//         EmployeeId: employeeId,
+//         Remarks: employeeData.Remarks,
+//       };
+
+//       const historyResponse = await fetch('http://localhost:5000/addToHistory', {
+//         method: 'POST',
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: JSON.stringify(historyData),
+//       });
+
+//       if (!historyResponse.ok) {
+//         throw new Error('Failed to add record to History');
+//       }
+//     }
+
+//     // Display the success message
+//     alert(successMessage);
+
+//         // Refresh employee data after successful addition
+//         fetchEmployeeData();
+
+//      // Reload the page after showing the alert
+//      window.location.reload();
+
+//   } catch (error) {
+//     console.error('Error updating employee information:', error);
+//     // Send alert message for failure
+//     alert('Failed to update employee information. Please try again later.');
+//   }
+// };
 const handleFormEmpInfoSubmit = async (e) => {
   e.preventDefault(); // Prevent the default form submission
 
-  // Validate HRANType is chosen
-  if (!employeeData.HRANType) {
-    alert('Please choose an HRANType before updating the employee information.');
+  // Check if HRANType is selected and changed
+  const isHRANTypeChanged = employeeData.HRANType !== initialEmployeeData.HRANType;
+
+  // Validate Remarks only if HRANType is selected and changed
+  if (isHRANTypeChanged && !validateRemarks()) {
     return;
   }
-   // Validate Remarks before submission
-   if (!validateRemarks()) {
-    return;
-  }
+
   try {
     // Fetch the current employee data
     const currentDataResponse = await fetch(`http://localhost:5000/getEmployeeInfo/${employeeId}`);
@@ -596,7 +712,6 @@ const handleFormEmpInfoSubmit = async (e) => {
 
     // Store previous values for all the fields being updated
     const previousValues = { ...currentData };
-
 
     // Fetch call to update employee information
     const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
@@ -623,7 +738,7 @@ const handleFormEmpInfoSubmit = async (e) => {
       }
     });
 
-    // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
+    // Filter out fields that should not trigger remarks validation
     const filteredFields = updatedFields.filter(
       (field) => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName', 'EmContactCompleteAddress'].includes(field)
     );
@@ -644,7 +759,6 @@ const handleFormEmpInfoSubmit = async (e) => {
 
     // Insert into History table for each updated field
     for (const field of filteredFields) {
-
       const newValue = employeeData[field];
       if (newValue === undefined || newValue === null) {
         console.error(`Invalid value for field ${field}: ${newValue}`);
@@ -660,7 +774,7 @@ const handleFormEmpInfoSubmit = async (e) => {
         DateCreated: new Date().toISOString(),
         UpdatedBy: updatedBy,
         EmployeeId: employeeId,
-        Remarks: employeeData.Remarks,
+        Remarks: isHRANTypeChanged ? employeeData.Remarks : '', // Include Remarks only if HRANType is changed
       };
 
       const historyResponse = await fetch('http://localhost:5000/addToHistory', {
@@ -679,11 +793,11 @@ const handleFormEmpInfoSubmit = async (e) => {
     // Display the success message
     alert(successMessage);
 
-        // Refresh employee data after successful addition
-        fetchEmployeeData();
+    // Refresh employee data after successful addition
+    fetchEmployeeData();
 
-     // Reload the page after showing the alert
-     window.location.reload();
+    // Reload the page after showing the alert
+    window.location.reload();
 
   } catch (error) {
     console.error('Error updating employee information:', error);
@@ -691,6 +805,7 @@ const handleFormEmpInfoSubmit = async (e) => {
     alert('Failed to update employee information. Please try again later.');
   }
 };
+
 
       //UPDATE ADDRESS DETAILS
       const handleAddressFormSubmit = async (e) => {
@@ -5452,7 +5567,7 @@ function isValidDate(dateString) {
                                   <th scope="col">Action</th>
                                   <th scope="col">Old</th>
                                   <th scope="col">New</th>
-                                  <th scope="col">Remark</th>
+                                  <th scope="col">Remarks</th>
                                   <th scope="col">Date Created</th>
                                   <th scope="col">Updated By</th>
                                 </tr>

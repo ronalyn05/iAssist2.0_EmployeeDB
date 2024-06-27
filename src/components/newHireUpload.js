@@ -77,9 +77,15 @@ const NewHireUpload = () => {
     });
   };
 
+//this handles to automatically fill in the empty fields
+  // const parseCellValue = (value) => {
+  //   return value !== undefined && value !== null ? value.toString() : "N/A";
+  // };
+
   const parseCellValue = (value) => {
-    return value !== undefined && value !== null ? value.toString() : "N/A";
+    return value !== undefined && value !== null ? value.toString() : "";
   };
+
 
   const parseExcelData = (data) => {
     const workbook = XLSX.read(data, { type: "array" });
@@ -158,173 +164,145 @@ const NewHireUpload = () => {
     }
   };
 
-  //function of insertion of data
+  // Function to check if a field is empty
+  const isFieldEmpty = (value) => {
+    return value === null || value === "";
+  };
+
+  // Function of insertion of data
   const handleSaveData = async () => {
     console.log("Saving data...");
     console.log("Excel Data:", excelData);
 
     try {
-        // Check for null values in any row
-        const hasNullValues = excelData.some((row) =>
-            Object.values(row).some((value) => value === null || value === "")
+      // Check for empty fields in any row
+      const hasEmptyFields = excelData.some((row) =>
+        Object.values(row).some((value) => isFieldEmpty(value))
+      );
+
+      if (hasEmptyFields) {
+        throw new Error(
+          "One or more fields are empty. Please fill in all fields."
         );
+      }
 
-        if (hasNullValues) {
-            throw new Error(
-                "One or more fields contain null values. Please fill in all fields and use 'N/A' if a field is empty."
-            );
-        }
+      // Validate bit fields
+      const validateBitFields = () => {
+        const invalidFields = [];
 
-        // Validate bit fields
-        const validateBitFields = () => {
-            const invalidFields = [];
-
-            excelData.forEach((row, index) => {
-                const validateField = (fieldName, validValues) => {
-                    if (!validValues.includes(row[fieldName])) {
-                        invalidFields.push(`${fieldName} in row ${index + 1}`);
-                    }
-                };
-
-                validateField("IsManager", ["0", "1", 0, 1]);
-                validateField("IsPMPIC", ["0", "1", 0, 1]);
-                validateField("IsIndividualContributor", ["0", "1", 0, 1]);
-                validateField("IsActive", ["0", "1", 0, 1]);
-                validateField("Is_Active", ["0", "1", 0, 1]);
-                validateField("is_Active", ["0", "1", 0, 1]);
-                validateField("IsDUHead", ["0", "1", 0, 1]);
-                validateField("IsPermanent", ["0", "1", 0, 1]);
-                validateField("IsEmergency", ["0", "1", 0, 1]);
-            });
-
-            if (invalidFields.length > 0) {
-                throw new Error(
-                    `Invalid values detected:\n${invalidFields.join("\n")}`
-                );
+        excelData.forEach((row, index) => {
+          const validateField = (fieldName, validValues) => {
+            if (!validValues.includes(row[fieldName])) {
+              invalidFields.push(`${fieldName} in row ${index + 1}`);
             }
+          };
+
+          validateField("IsManager", ["0", "1", 0, 1]);
+          validateField("IsPMPIC", ["0", "1", 0, 1]);
+          validateField("IsIndividualContributor", ["0", "1", 0, 1]);
+          validateField("IsActive", ["0", "1", 0, 1]);
+          validateField("Is_Active", ["0", "1", 0, 1]);
+          validateField("is_Active", ["0", "1", 0, 1]);
+          validateField("IsDUHead", ["0", "1", 0, 1]);
+          validateField("IsPermanent", ["0", "1", 0, 1]);
+          validateField("IsEmergency", ["0", "1", 0, 1]);
+        });
+
+        if (invalidFields.length > 0) {
+          throw new Error(
+            `Invalid values detected:\n${invalidFields.join("\n")}`
+          );
+        }
+      };
+
+      validateBitFields();
+
+      // Validate Role field
+      const invalidRoles = excelData.filter((row) => {
+        const role = row.Role?.trim();
+        return role !== "HRAdmin" && role !== "Employee";
+      });
+
+      if (invalidRoles.length > 0) {
+        const invalidRoleRows = invalidRoles.map((row, index) => `Row ${index + 1}`);
+        throw new Error(`Invalid Role values detected in the following rows: ${invalidRoleRows.join(", ")} (which is the Employee Role Type). Please ensure the Role is either 'HRAdmin' or 'Employee'.`);
+      }
+
+      // Check for duplicate Employee IDs against backend API
+      const duplicateEmployeeIds = [];
+      for (const row of excelData) {
+        const { EmployeeId } = row;
+        const response = await axios.get(
+          `/api/checkExistingEmployeeId/${EmployeeId}`
+        );
+        if (response.data.exists) {
+          duplicateEmployeeIds.push(EmployeeId);
+        }
+      }
+
+      if (duplicateEmployeeIds.length > 0) {
+        throw new Error(
+          `Duplicate Employee IDs detected: ${duplicateEmployeeIds.join(
+            ", "
+          )}. Each Employee ID must be unique.`
+        );
+      }
+
+      // Format date fields
+      const formattedData = excelData.map((row) => {
+        const formattedRow = { ...row };
+        const dateFields = [
+          "Birthdate",
+          "DateHired",
+          "DateTo",
+          "DateFrom",
+          "DateOfBirth",
+        ];
+        dateFields.forEach((field) => {
+          formattedRow[field] = convertExcelDateToDate(row[field]);
+        });
+        return formattedRow;
+      });
+
+      // Generate a unique password for each employee and include it in the data sent to the server
+      const dataWithPasswords = formattedData.map((row) => {
+        const uniquePassword = generateUniquePassword();
+        return { ...row, Password: uniquePassword };
+      });
+
+      // Send data to the backend API
+      const response = await axios.post("/uploadNewHire", dataWithPasswords, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status !== 200) {
+        throw new Error("Failed to save data");
+      }
+
+      // Send email notifications to the employees with their unique passwords
+      for (const row of dataWithPasswords) {
+        const templateParams = {
+          from_name: 'Innodata - HRAdmin',
+          firstName: row.FirstName,
+          employeeId: row.EmployeeId,
+          temporaryPassword: row.Password,
+          to_email: row.EmailAddress,
         };
 
-        validateBitFields();
+        await sendEmailNotification(templateParams);
+      }
 
-        // Validate Role field
-        const invalidRoles = excelData.filter((row) => {
-            const role = row.Role?.trim();
-            return role !== "HRAdmin" && role !== "Employee";
-        });
-
-        if (invalidRoles.length > 0) {
-            const invalidRoleRows = invalidRoles.map((row, index) => `Row ${index + 1}`);
-            throw new Error(`Invalid Role values detected in the following rows: ${invalidRoleRows.join(", ")} (which is the Employee Role Type). Please ensure the Role is either 'HRAdmin' or 'Employee'.`);
-        }
-
-        // Check for duplicate Employee IDs against backend API
-        const duplicateEmployeeIds = [];
-        for (const row of excelData) {
-            const { EmployeeId } = row;
-            const response = await axios.get(
-                `/api/checkExistingEmployeeId/${EmployeeId}`
-            );
-            if (response.data.exists) {
-                duplicateEmployeeIds.push(EmployeeId);
-            }
-        }
-
-        if (duplicateEmployeeIds.length > 0) {
-            throw new Error(
-                `Duplicate Employee IDs detected: ${duplicateEmployeeIds.join(
-                    ", "
-                )}. Each Employee ID must be unique.`
-            );
-        }
-
-        // Format date fields
-        const formattedData = excelData.map((row) => {
-            const formattedRow = { ...row };
-            const dateFields = [
-                "Birthdate",
-                "DateHired",
-                "DateTo",
-                "DateFrom",
-                "DateOfBirth",
-            ];
-            dateFields.forEach((field) => {
-                formattedRow[field] = convertExcelDateToDate(row[field]);
-            });
-            return formattedRow;
-        });
-
-        // Generate a unique password for each employee and include it in the data sent to the server
-        const dataWithPasswords = formattedData.map((row) => {
-            const uniquePassword = generateUniquePassword();
-            return { ...row, Password: uniquePassword };
-        });
-
-        // Make a POST request to upload data
-        const response = await axios.post("/uploadNewHire", dataWithPasswords, {
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        if (response.status !== 200) {
-            throw new Error("Failed to save data");
-        }
-
-        // Send email notifications after successful upload
-        for (const row of dataWithPasswords) {
-            const templateParams = {
-                from_name: 'Innodata - HRAdmin',
-                firstName: row.FirstName,
-                employeeId: row.EmployeeId,
-                temporaryPassword: row.Password,
-                to_email: row.EmailAddress,
-            };
-
-            // Send email notification with account details
-            await sendEmailNotification(templateParams);
-        }
-
-        alert("Data has been successfully uploaded and Email sent successfully to each account user!");
-        console.log("Upload response:", response.data);
-        navigate("/reports"); // Navigate to report.js after successful upload
+      alert("Data saved successfully and emails sent.");
+      setShowPreview(false);
+      setActiveTab("upload");
+      setExcelData([]);
     } catch (error) {
-        console.error("Error occurred while saving data:", error);
-
-        if (error.message.includes("Duplicate Employee IDs detected")) {
-            // Extract the list of duplicate Employee IDs from the error message
-            const duplicateIds = error.message.match(
-                /Duplicate Employee IDs detected: (.*). Each Employee ID must be unique\./
-            );
-            const duplicateEmployeeIds = duplicateIds
-                ? duplicateIds[1].split(", ")
-                : [];
-
-            if (duplicateEmployeeIds.length > 0) {
-                alert(
-                    `Duplicate Employee IDs detected in the uploaded data: ${duplicateEmployeeIds.join(
-                        ", "
-                    )}. Each Employee ID must be unique.`
-                );
-                return; // Stop further execution to prevent displaying the generic error message
-            }
-        }
-
-        // Handle other types of errors
-        if (error.message.includes("One or more fields contain null values")) {
-            alert(
-                "One or more fields contain null values. Please fill in all fields and use 'N/A' if a field is empty."
-            );
-        } else if (error.message.includes("Invalid Role values detected")) {
-            alert(error.message);
-        } else if (error.message.includes("Failed to save data")) {
-            alert("Failed to save data. Please try again.");
-        } else {
-            alert(
-                `Failed to upload data to the database. An unexpected error occurred. Please try again.`
-            );
-        }
+      console.error("Error saving data:", error);
+      alert(error.message);
     }
-};
+  };
 
   return (
     <div>
@@ -522,6 +500,7 @@ const NewHireUpload = () => {
       {/* End of Page Wrapper */}
 
       {/* Edit Modal */}
+     
       <Modal
         show={editModalShow}
         onHide={handleCloseEditModal}
@@ -540,7 +519,13 @@ const NewHireUpload = () => {
                 {Object.keys(editRowData).map((key) => (
                   <Col key={key} md={4}>
                     <div className="form-group">
-                      <label>{key}</label>
+                      {/* <label>{key}</label> */}
+                      <label htmlFor={key}>
+                        {key}{" "}
+                        {isFieldEmpty(editedData[key]) && (
+                          <span style={{ color: "red" }}> *required field </span>
+                        )}
+                      </label>
                       <input
                         type="text"
                         className={`form-control auto-width-input`}

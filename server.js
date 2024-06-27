@@ -255,18 +255,6 @@ app.post('/getnotificationsforviewall',  upload.single('EmpId'), async (req, res
 });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 //RONALYN - EMPLOYEE DB STARTS HERE
 // Generate a random string
 const generateRandomString = (length) => {
@@ -1001,7 +989,7 @@ app.get('/retrieve/history/:employeeId', async (req, res) => {
   }
 });
 
-//EMPLOYEE DB ENDPOINTS ENDS HERE
+//RONALYN - EMPLOYEE DB ENDPOINTS ENDS HERE
 
 
 
