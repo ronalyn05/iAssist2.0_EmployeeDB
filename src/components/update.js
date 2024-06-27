@@ -6,6 +6,7 @@ import Footer from './footer';
 import '../App.css';
 import { Modal, Button } from 'react-bootstrap';
 import 'jspdf-autotable';
+import * as XLSX from "xlsx";
 
  function UpdateEmployeeInfo() {
   const navigate = useNavigate();
@@ -805,7 +806,6 @@ const handleFormEmpInfoSubmit = async (e) => {
     alert('Failed to update employee information. Please try again later.');
   }
 };
-
 
       //UPDATE ADDRESS DETAILS
       const handleAddressFormSubmit = async (e) => {
@@ -1808,6 +1808,14 @@ function isValidDate(dateString) {
   const d = new Date(dateString);
   return !isNaN(d);
 }
+ //this only download data that are visible in the user interface table
+  const handleDownloadExcel = () => {
+    const ws = XLSX.utils.json_to_sheet(filteredHistory);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "History Report");
+
+    XLSX.writeFile(wb, "History_Report.xlsx");
+  };
 
   if (!employeeData) {
     return <div>Loading...</div>;
@@ -1863,7 +1871,7 @@ function isValidDate(dateString) {
                       </li>
                   </ul>
                   </div>
-                 <br/>
+                 <br />
                   <div className="tab-content">
                       <div className="tab-pane fade show active" id="personalDetails" role="tabpanel" aria-labelledby="personalDetails-tab">
                           {/* Personal Details Form */}
@@ -5557,6 +5565,14 @@ function isValidDate(dateString) {
                       <div className='tab-pane fade' id='history' role='tabpanel' aria-labelledby='history-tab'>
                          {/* History Table */}
                          <div className='card-body'>
+                         <button
+                        className="btn btn-primary mr-2"
+                        onClick={handleDownloadExcel}
+                      >
+                        <i className="fas fa-arrow-down"></i> History
+                      </button>
+                      <br/>
+                      <hr/>
                           <div className="table-responsive">
                             <table className="table">
                               <thead>
