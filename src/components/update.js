@@ -128,6 +128,7 @@ import * as XLSX from "xlsx";
   const [contactError, setContactError] = useState('');
   const [secondaryContactError, setSecondaryContactError] = useState('');
   const [newContactError, setNewContactError] = useState('');
+  const [currentUserLevel, setCurrentUserLevel] = useState('');
   
   //handles to validate address
   const validateAddressForm = () => {
@@ -202,24 +203,140 @@ import * as XLSX from "xlsx";
     console.error('Error fetching dependents:', error);
   }
 };
-// Define the fetchCompBen function
-const fetchCompBen = async () => {
-  console.log(employeeId);
+
+//fetching the compBen data
+// useEffect(() => {
+//   const storedUserLevel = sessionStorage.getItem('level');
+//   if (storedUserLevel) {
+//     setCurrentUserLevel(storedUserLevel);
+//   }
+//   fetchCompBen(storedUserLevel); // Fetch compensation data
+// }, []);
+
+// const fetchCompBen = async (storedUserLevel) => {
+//   console.log('Fetching compensation data for employee:', employeeId);
+//   console.log('User level:', storedUserLevel);
+//   try {
+//     const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
+//     if (!response.ok) {
+//       throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
+//     }
+//     const data = await response.json();
+//     console.log('Fetched data:', data);
+
+//     // Filter the data based on logged-in user's level
+//     const filteredData = filterCompensationData(data, storedUserLevel);
+//     setFilteredCompBen(filteredData);
+//     console.log('Filtered data:', filteredData);
+//   } catch (error) {
+//     console.error('Error fetching compensation benefits details:', error);
+//   }
+// };
+
+// const filterCompensationData = (data, level) => {
+//   console.log('Filtering data for level:', level);
+//   if (level >= 'Level 1' && level <= 'Level 5') {
+//     // Filter out employees whose levels are between Level 6 and Level 13
+//     return data.filter(employee => !(employee.Level >= 'Level 6' && employee.Level <= 'Level 13'));
+//   } else if (level >= 'Level 6' && level <= 'Level 13') {
+//     // Show all employees regardless of their levels
+//     return data;
+//   } else {
+//     return [];
+//   }
+// };
+useEffect(() => {
+  const storedUserLevel = sessionStorage.getItem('level');
+  if (storedUserLevel) {
+    setCurrentUserLevel(storedUserLevel);
+  }
+  fetchCompBen(storedUserLevel); // Fetch compensation data
+}, []);
+
+const fetchCompBen = async (storedUserLevel) => {
   try {
-    console.log(compBenData);
     const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
     if (!response.ok) {
       throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
     }
     const data = await response.json();
 
-        // setcompBenData(data);
-        // setCompBen(data); 
-        setFilteredCompBen(data);
+    // Filter the data based on logged-in user's level
+    const filteredData = filterCompensationData(data, storedUserLevel);
+    setFilteredCompBen(filteredData);
   } catch (error) {
     console.error('Error fetching compensation benefits details:', error);
   }
 };
+
+// const filterCompensationData = (data, level) => {
+//   return data.map(employee => {
+//     // If the user's level is between 1 and 5, hide salaries of employees with levels between 6 and 13
+//     if (level >= 'Level 1' && level <= 'Level 5' && employee.Level >= 'Level 6' && employee.Level <= 'Level 13') {
+//       return { ...employee, Salary: 'Hidden' };
+//     }
+//     return employee;
+//   });
+// };
+
+const filterCompensationData = (data, level) => {
+  const currentLevelNum = parseInt(level.split(' ')[1]);
+
+  return data.map(employee => {
+    const employeeLevelNum = parseInt(employee.Level.split(' ')[1]);
+
+    if (currentLevelNum >= 1 && currentLevelNum <= 5 && employeeLevelNum >= 6 && employeeLevelNum <= 13) {
+      return { ...employee, Salary: 'Hidden' };
+    }
+    return employee;
+  });
+};
+
+
+// const filterCompensationData = (data, level) => {
+//   console.log('Filtering data for level:', level);
+//   // if (level >= 'Level 1' && level <= 'Level 5') {
+//     if (level == 'Level 1' || level == 'Level 2' || level == 'Level 3' || level == 'Level 4' || level == 'Level 5') {
+//     // Filter for employees whose levels are between Level 1 and Level 5
+//     return data.map(employee => {
+//       // if (employee.Level >= 'Level 6' && employee.Level <= 'Level 13') {
+//         if (employee.Level == 'Level 6' || employee.Level == 'Level 7' || employee.Level == 'Level 8' || employee.Level == 'Level 9' || employee.Level == 'Level 10' || employee.Level == 'Level 11' || level == 'Level 12') {
+//         return { ...employee, Salary: 'Hidden' };
+//       }
+//       return employee;
+//     });
+//   } else if (level == 'Level 6' || level == 'Level 7' || level == 'Level 8' || level == 'Level 9' || level == 'Level 10' || level == 'Level 11' || level == 'Level 12') {
+//     // else if (level >= 'Level 6' && level <= 'Level 13') {
+//     // Show all employees regardless of their levels
+//     return data;
+//   } else {
+//     return [];
+//   }
+// };
+
+// useEffect(() => {
+//   fetchCompBen();
+// }, []);
+
+// // Define the fetchCompBen function
+// const fetchCompBen = async () => {
+//   console.log(employeeId);
+//   try {
+//     console.log(compBenData);
+//     const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
+//     if (!response.ok) {
+//       throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
+//     }
+//     const data = await response.json();
+
+//         // setcompBenData(data);
+//         // setCompBen(data); 
+//         setFilteredCompBen(data);
+//   } catch (error) {
+//     console.error('Error fetching compensation benefits details:', error);
+//   }
+// };
+
 // Define the History function
 const fetchHistory = async () => {
   console.log(employeeId);
@@ -243,7 +360,7 @@ useEffect(() => {
 useEffect(() => {
   fetchDependents();
   fetchEmployeeData();
-  fetchCompBen();
+  // fetchCompBen();
 }, [employeeId]);
 
 // Function to format date as 'MM/DD/YYYY'
@@ -477,6 +594,7 @@ const handleInputChange = (e) => {
 //         setOtherHRANType('');
 //     }
 // };
+
 const addOtherHRANType = () => {
   if (otherHRANType.trim() && !options.includes(otherHRANType)) {
     setOptions([...options, otherHRANType]);
@@ -575,123 +693,6 @@ const handleAddContactForm = async (e) => {
   };
 
 // Function to handle in updating the employee information
-// const handleFormEmpInfoSubmit = async (e) => {
-//   e.preventDefault(); // Prevent the default form submission
-
-//   // Validate HRANType is chosen
-//   if (!employeeData.HRANType) {
-//     alert('Please choose an HRANType before updating the employee information.');
-//     return;
-//   }
-//    // Validate Remarks before submission
-//    if (!validateRemarks()) {
-//     return;
-//   }
-//   try {
-//     // Fetch the current employee data
-//     const currentDataResponse = await fetch(`http://localhost:5000/getEmployeeInfo/${employeeId}`);
-//     if (!currentDataResponse.ok) {
-//       throw new Error('Failed to fetch current employee data');
-//     }
-//     const currentData = await currentDataResponse.json();
-
-//     // Store previous values for all the fields being updated
-//     const previousValues = { ...currentData };
-
-
-//     // Fetch call to update employee information
-//     const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
-//       method: 'PUT',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify(employeeData),
-//     });
-
-//     if (!response.ok) {
-//       throw new Error('Failed to update employee');
-//     }
-
-//     // Retrieve the name of the employee from employeeData
-//     const { FirstName, LastName } = employeeData;
-//     const employeeName = `${FirstName} ${LastName}`;
-
-//     // Compare initial employeeData with updated employeeData
-//     const updatedFields = [];
-//     Object.entries(employeeData).forEach(([key, value]) => {
-//       if (value !== initialEmployeeData[key]) {
-//         updatedFields.push(key);
-//       }
-//     });
-
-//     // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
-//     const filteredFields = updatedFields.filter(
-//       (field) => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName', 'EmContactCompleteAddress'].includes(field)
-//     );
-
-//     // Generate success message based on updated fields
-//     let successMessage;
-//     if (filteredFields.length === 0) {
-//       successMessage = `No employee information has been updated for ${employeeName}.`;
-//     } else {
-//       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
-//     }
-
-//     // Retrieve user's first name from session storage
-//     const updatedByFirstName = sessionStorage.getItem('firstName');
-//     const updatedByLastName = sessionStorage.getItem('lastName');
-//     const updatedByRole = sessionStorage.getItem('role');
-//     const updatedBy = `${updatedByRole} ${updatedByFirstName} ${updatedByLastName}`;
-
-//     // Insert into History table for each updated field
-//     for (const field of filteredFields) {
-
-//       const newValue = employeeData[field];
-//       if (newValue === undefined || newValue === null) {
-//         console.error(`Invalid value for field ${field}: ${newValue}`);
-//         continue;
-//       }
-
-//       const historyData = {
-//         EmployeeName: employeeName,
-//         Action: 'Update',
-//         FieldName: field,
-//         OldValue: previousValues[field] || 'N/A',
-//         NewValue: employeeData[field],
-//         DateCreated: new Date().toISOString(),
-//         UpdatedBy: updatedBy,
-//         EmployeeId: employeeId,
-//         Remarks: employeeData.Remarks,
-//       };
-
-//       const historyResponse = await fetch('http://localhost:5000/addToHistory', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(historyData),
-//       });
-
-//       if (!historyResponse.ok) {
-//         throw new Error('Failed to add record to History');
-//       }
-//     }
-
-//     // Display the success message
-//     alert(successMessage);
-
-//         // Refresh employee data after successful addition
-//         fetchEmployeeData();
-
-//      // Reload the page after showing the alert
-//      window.location.reload();
-
-//   } catch (error) {
-//     console.error('Error updating employee information:', error);
-//     // Send alert message for failure
-//     alert('Failed to update employee information. Please try again later.');
-//   }
-// };
 const handleFormEmpInfoSubmit = async (e) => {
   e.preventDefault(); // Prevent the default form submission
 
@@ -1810,10 +1811,69 @@ function isValidDate(dateString) {
 }
  //this only download data that are visible in the user interface table
   const handleDownloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(filteredHistory);
+    // Clone and modify filteredHistory for desired changes
+    const modifiedHistory = filteredHistory.map(entry => {
+      const { HistoryID, NewValue, OldValue, ...rest } = entry;
+      return {
+        EmployeeId: entry.EmployeeId,
+        EmployeeName: entry.EmployeeName,
+        FieldName: entry.FieldName,
+        Action: entry.Action,
+        Old: OldValue,
+        New: NewValue,
+        Remarks: entry.Remarks,
+        DateCreated: entry.DateCreated,
+        UpdatedBy: entry.UpdatedBy
+      };
+    });
+  
+    // Apply uppercase to text fields
+    const upperCaseHistory = modifiedHistory.map(entry => {
+      const newEntry = {};
+      for (const key in entry) {
+        newEntry[key] = typeof entry[key] === 'string'
+          ? entry[key].toUpperCase()
+          : entry[key];
+      }
+      return newEntry;
+    });
+  
+    const ws = XLSX.utils.json_to_sheet(upperCaseHistory);
+  
+    // Auto-adjust column widths based on the longest cell value in each column
+    const colWidths = [];
+    const data = [Object.keys(upperCaseHistory[0])].concat(upperCaseHistory.map(obj => Object.values(obj)));
+  
+    data.forEach(row => {
+      row.forEach((val, idx) => {
+        const len = val ? val.toString().length : 10;
+        if (!colWidths[idx] || len > colWidths[idx].wch) {
+          colWidths[idx] = { wch: len };
+        }
+      });
+    });
+  
+    ws['!cols'] = colWidths;
+  
+    // Center text in each cell
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell) {
+          cell.s = {
+            alignment: {
+              horizontal: "center",
+              vertical: "center"
+            }
+          };
+        }
+      }
+    }
+  
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "History Report");
-
+  
     XLSX.writeFile(wb, "History_Report.xlsx");
   };
 
@@ -1962,7 +2022,6 @@ function isValidDate(dateString) {
                                               <input type="text" className="form-control" value={employeeData.AgeBracket} onChange={handleInputChange} name="AgeBracket"/>
                                               </div>
                                             </div>
-
                                 </div>
                                 <div className="row justify-content-center">
                                 <div className="col-md-4">
@@ -2475,7 +2534,7 @@ function isValidDate(dateString) {
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="managerName">Manager Name</label>
-                                              <input type="text" className="form-control" value={employeeData.ManagerName} placeholder="enter manager name" name="ManagerName" onChange={handleInputChange} />
+                                              <input type="text" className="form-control" value={toSentenceCase(employeeData.ManagerName)} placeholder="enter manager name" name="ManagerName" onChange={handleInputChange} />
                                               </div>
                                             </div>
                                             <div className="col-md-4">
@@ -5507,56 +5566,106 @@ function isValidDate(dateString) {
                                         </tr>
                                       </thead>
                                       <tbody>
-                        {filteredCompBen.length > 0 ? (
-                          filteredCompBen.map((compBen, index) => (
-                            <tr key={index}>
-                              <td>
-                              <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
-                                              <i className="fas fa-pencil-alt"></i>
-                              </button>
-                                </td>
-                                <td>₱{compBen.Salary}</td>  
-                                <td>₱{compBen.DailyEquivalent}</td> 
-                                <td>₱{compBen.MonthlyEquivalent}</td>
-                                <td>₱{compBen.AnnualEquivalent}</td>
-                                <td>₱{compBen.RiceMonthly}</td>
-                                <td>₱{compBen.RiceAnnual}</td>
-                                <td>₱{compBen.RiceDifferentialAnnual}</td>
-                                <td>₱{compBen.UniformAnnual}</td>
-                                <td>{compBen.LeaveDays}</td>
-                                <td>₱{compBen.LaundryAllowance}</td>
-                                <td>₱{compBen.CommAllowance}</td>
-                                <td>{compBen.CommAllowanceType}</td>
-                                <td>₱{compBen.CashGift}</td>
-                                <td>₱{compBen.MedicalInsurance}</td>
-                                <td>{compBen.FreeHMODependent}</td>
-                                <td>₱{compBen.MBL}</td>
-                                <td>₱{compBen.LifeInsurance}</td>
-                                <td>{compBen.Beneficiaries}</td>
-                                <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
-                                <td>{compBen.PWDIDNumber}</td>
-                                <td>{compBen.TendopayRegistered}</td>
-                                <td>{compBen.CanteenUID}</td>
-                                <td>{compBen.CanteenCreditLimit}</td>
-                                <td>{compBen.CanteenBarcode}</td>
-                                <td>{compBen.DAPMembershipNumber}</td>
-                                <td>{compBen.DAPDependents}</td>
-                                <td>{compBen.Stat_SSSNumber}</td>
-                                <td>{compBen.Stat_SSSMonthlyContribution}</td>
-                                <td>{compBen.Stat_PagIbigNumber}</td>
-                                <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
-                                <td>{compBen.Stat_PHICNumber}</td>
-                                <td>{compBen.Stat_PHICMonthlyContribution}</td>
-                                <td>{compBen.Stat_TINNumber}</td>
-                                <td>{compBen.CreatedAt}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="19">No compensation benefit data yet.</td>
-                          </tr>
-                        )}
-                      </tbody>
+                                      {filteredCompBen.length > 0 ? (
+          filteredCompBen.map((compBen, index) => (
+            <tr key={index}>
+              <td>
+                <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
+                  <i className="fas fa-pencil-alt"></i>
+                </button>
+              </td>
+              {/* <td>₱{compBen.Salary}</td> */}
+              <td>{compBen.Salary !== 'Hidden' ? `₱${compBen.Salary}` : 'Hidden'}</td>
+              <td>₱{compBen.DailyEquivalent}</td>
+              <td>₱{compBen.MonthlyEquivalent}</td>
+              <td>₱{compBen.AnnualEquivalent}</td>
+              <td>₱{compBen.RiceMonthly}</td>
+              <td>₱{compBen.RiceAnnual}</td>
+              <td>₱{compBen.RiceDifferentialAnnual}</td>
+              <td>₱{compBen.UniformAnnual}</td>
+              <td>{compBen.LeaveDays}</td>
+              <td>₱{compBen.LaundryAllowance}</td>
+              <td>₱{compBen.CommAllowance}</td>
+              <td>{compBen.CommAllowanceType}</td>
+              <td>₱{compBen.CashGift}</td>
+              <td>₱{compBen.MedicalInsurance}</td>
+              <td>{compBen.FreeHMODependent}</td>
+              <td>₱{compBen.MBL}</td>
+              <td>₱{compBen.LifeInsurance}</td>
+              <td>{compBen.Beneficiaries}</td>
+              <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
+              <td>{compBen.PWDIDNumber}</td>
+              <td>{compBen.TendopayRegistered}</td>
+              <td>{compBen.CanteenUID}</td>
+              <td>{compBen.CanteenCreditLimit}</td>
+              <td>{compBen.CanteenBarcode}</td>
+              <td>{compBen.DAPMembershipNumber}</td>
+              <td>{compBen.DAPDependents}</td>
+              <td>{compBen.Stat_SSSNumber}</td>
+              <td>{compBen.Stat_SSSMonthlyContribution}</td>
+              <td>{compBen.Stat_PagIbigNumber}</td>
+              <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
+              <td>{compBen.Stat_PHICNumber}</td>
+              <td>{compBen.Stat_PHICMonthlyContribution}</td>
+              <td>{compBen.Stat_TINNumber}</td>
+              <td>{compBen.CreatedAt}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan="19">No compensation benefit data yet.</td>
+          </tr>
+        )}
+                                          {/* {filteredCompBen.length > 0 ? (
+                                            filteredCompBen.map((compBen, index) => (
+                                              <tr key={index}>
+                                                <td>
+                                                <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
+                                                                <i className="fas fa-pencil-alt"></i>
+                                                </button>
+                                                  </td>
+                                                  <td>₱{compBen.Salary}</td>  
+                                                  <td>₱{compBen.DailyEquivalent}</td> 
+                                                  <td>₱{compBen.MonthlyEquivalent}</td>
+                                                  <td>₱{compBen.AnnualEquivalent}</td>
+                                                  <td>₱{compBen.RiceMonthly}</td>
+                                                  <td>₱{compBen.RiceAnnual}</td>
+                                                  <td>₱{compBen.RiceDifferentialAnnual}</td>
+                                                  <td>₱{compBen.UniformAnnual}</td>
+                                                  <td>{compBen.LeaveDays}</td>
+                                                  <td>₱{compBen.LaundryAllowance}</td>
+                                                  <td>₱{compBen.CommAllowance}</td>
+                                                  <td>{compBen.CommAllowanceType}</td>
+                                                  <td>₱{compBen.CashGift}</td>
+                                                  <td>₱{compBen.MedicalInsurance}</td>
+                                                  <td>{compBen.FreeHMODependent}</td>
+                                                  <td>₱{compBen.MBL}</td>
+                                                  <td>₱{compBen.LifeInsurance}</td>
+                                                  <td>{compBen.Beneficiaries}</td>
+                                                  <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
+                                                  <td>{compBen.PWDIDNumber}</td>
+                                                  <td>{compBen.TendopayRegistered}</td>
+                                                  <td>{compBen.CanteenUID}</td>
+                                                  <td>{compBen.CanteenCreditLimit}</td>
+                                                  <td>{compBen.CanteenBarcode}</td>
+                                                  <td>{compBen.DAPMembershipNumber}</td>
+                                                  <td>{compBen.DAPDependents}</td>
+                                                  <td>{compBen.Stat_SSSNumber}</td>
+                                                  <td>{compBen.Stat_SSSMonthlyContribution}</td>
+                                                  <td>{compBen.Stat_PagIbigNumber}</td>
+                                                  <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
+                                                  <td>{compBen.Stat_PHICNumber}</td>
+                                                  <td>{compBen.Stat_PHICMonthlyContribution}</td>
+                                                  <td>{compBen.Stat_TINNumber}</td>
+                                                  <td>{compBen.CreatedAt}</td>
+                                              </tr>
+                                            ))
+                                          ) : (
+                                            <tr>
+                                              <td colSpan="19">No compensation benefit data yet.</td>
+                                            </tr>
+                                          )} */}
+                                        </tbody>
                                     </table>
                                   </div>
                            </div>
@@ -5569,7 +5678,7 @@ function isValidDate(dateString) {
                         className="btn btn-primary mr-2"
                         onClick={handleDownloadExcel}
                       >
-                        <i className="fas fa-arrow-down"></i> History
+                        <i className="fas fa-arrow-down"></i> History Record
                       </button>
                       <br/>
                       <hr/>
