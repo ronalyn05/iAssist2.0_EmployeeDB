@@ -10,7 +10,7 @@ const getEmployees = async (EmployeeId) => {
       .request()
       .input("EmployeeId", sql.VarChar, EmployeeId)
       .query(`
-        SELECT UA.*, EI.EmployeeStatus, EI.Facility 
+        SELECT UA.*, EI.EmployeeStatus, EI.Facility, EI.Level 
         FROM UserAccount UA
         JOIN EmployeeInfo EI ON UA.EmployeeId = EI.EmployeeId
         WHERE UA.EmployeeId = @EmployeeId

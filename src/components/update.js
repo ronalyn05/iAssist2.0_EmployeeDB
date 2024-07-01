@@ -128,7 +128,15 @@ import * as XLSX from "xlsx";
   const [contactError, setContactError] = useState('');
   const [secondaryContactError, setSecondaryContactError] = useState('');
   const [newContactError, setNewContactError] = useState('');
-  
+  const [loggedInLevel, setLoggedInLevel] = useState(null); 
+
+  useEffect(() => {
+    // Fetch and set logged-in user's level from sessionStorage or wherever it's stored
+    const level = sessionStorage.getItem('level');
+    console.log("level", level);
+    setLoggedInLevel(level);
+  }, []);
+
   //handles to validate address
   const validateAddressForm = () => {
     const errors = {};
@@ -202,24 +210,83 @@ import * as XLSX from "xlsx";
     console.error('Error fetching dependents:', error);
   }
 };
-// Define the fetchCompBen function
-const fetchCompBen = async () => {
-  console.log(employeeId);
-  try {
-    console.log(compBenData);
-    const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
-    }
-    const data = await response.json();
 
-        // setcompBenData(data);
-        // setCompBen(data); 
-        setFilteredCompBen(data);
-  } catch (error) {
-    console.error('Error fetching compensation benefits details:', error);
-  }
-};
+  // Define the fetchCompBen function
+  const fetchCompBen = async () => {
+    console.log(employeeId);
+    try {
+      console.log(compBenData);
+      const response = await fetch(`http://localhost:5000/retrieve/compBen/${employeeId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch compensation benefits details: ${response.statusText}`);
+      }
+      const data = await response.json();
+
+          // setcompBenData(data);
+          // setCompBen(data); 
+          setFilteredCompBen(data);
+    } catch (error) {
+      console.error('Error fetching compensation benefits details:', error);
+    }
+  };
+  const renderCompBenRows = () => {
+    return filteredCompBen.map((compBen, index) => (
+      <tr key={index}>
+        <td>
+          <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
+            <i className="fas fa-pencil-alt"></i>
+          </button>
+        </td>
+        <td>{shouldShowSalary(employeeData.Level) ? `₱${compBen.Salary}` : 'Salary Hidden'}</td>
+        <td>₱{compBen.DailyEquivalent}</td>
+        <td>₱{compBen.MonthlyEquivalent}</td>
+        <td>₱{compBen.AnnualEquivalent}</td>
+        <td>₱{compBen.RiceMonthly}</td>
+        <td>₱{compBen.RiceAnnual}</td>
+        <td>₱{compBen.RiceDifferentialAnnual}</td>
+        <td>₱{compBen.UniformAnnual}</td>
+        <td>{compBen.LeaveDays}</td>
+        <td>₱{compBen.LaundryAllowance}</td>
+        <td>₱{compBen.CommAllowance}</td>
+        <td>{compBen.CommAllowanceType}</td>
+        <td>₱{compBen.CashGift}</td>
+        <td>₱{compBen.MedicalInsurance}</td>
+        <td>{compBen.FreeHMODependent}</td>
+        <td>₱{compBen.MBL}</td>
+        <td>₱{compBen.LifeInsurance}</td>
+        <td>{compBen.Beneficiaries}</td>
+        <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
+        <td>{compBen.PWDIDNumber}</td>
+        <td>{compBen.TendopayRegistered}</td>
+        <td>{compBen.CanteenUID}</td>
+        <td>{compBen.CanteenCreditLimit}</td>
+        <td>{compBen.CanteenBarcode}</td>
+        <td>{compBen.DAPMembershipNumber}</td>
+        <td>{compBen.DAPDependents}</td>
+        <td>{compBen.Stat_SSSNumber}</td>
+        <td>{compBen.Stat_SSSMonthlyContribution}</td>
+        <td>{compBen.Stat_PagIbigNumber}</td>
+        <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
+        <td>{compBen.Stat_PHICNumber}</td>
+        <td>{compBen.Stat_PHICMonthlyContribution}</td>
+        <td>{compBen.Stat_TINNumber}</td>
+        <td>{compBen.CreatedAt}</td>
+      </tr>
+    ));
+  };
+
+  const shouldShowSalary = (employeeLevel) => {
+    if (!loggedInLevel) return false; // Hide if logged-in level is not set
+    if (loggedInLevel <= 5 && employeeLevel <= 5) {
+      return true; // Show salary if both are 1-5
+    }
+    if (loggedInLevel >= 6 && loggedInLevel <= 13) {
+      return true; // Show all for levels 6-13
+    }
+    return false; // Hide by default
+  };
+
+
 // Define the History function
 const fetchHistory = async () => {
   console.log(employeeId);
@@ -243,7 +310,7 @@ useEffect(() => {
 useEffect(() => {
   fetchDependents();
   fetchEmployeeData();
-  fetchCompBen();
+  // fetchCompBen();
 }, [employeeId]);
 
 // Function to format date as 'MM/DD/YYYY'
@@ -388,6 +455,7 @@ const handleCloseAddModal = () => {
       };
 
       setEmployeeData(formattedData);
+      fetchCompBen();
     } catch (error) {
       console.error('Error fetching employee data:', error);
       setErrorMessage('Error fetching employee data');
@@ -470,13 +538,6 @@ const handleInputChange = (e) => {
 };
   
 //function that handles in adding other hran type details
-// const addOtherHRANType = () => {
-//     if (otherHRANType && !options.includes(otherHRANType)) {
-//         setOptions([...options, otherHRANType]);
-//         setEmployeeData({ ...employeeData, HRANType: otherHRANType });
-//         setOtherHRANType('');
-//     }
-// };
 const addOtherHRANType = () => {
   if (otherHRANType.trim() && !options.includes(otherHRANType)) {
     setOptions([...options, otherHRANType]);
@@ -575,123 +636,6 @@ const handleAddContactForm = async (e) => {
   };
 
 // Function to handle in updating the employee information
-// const handleFormEmpInfoSubmit = async (e) => {
-//   e.preventDefault(); // Prevent the default form submission
-
-//   // Validate HRANType is chosen
-//   if (!employeeData.HRANType) {
-//     alert('Please choose an HRANType before updating the employee information.');
-//     return;
-//   }
-//    // Validate Remarks before submission
-//    if (!validateRemarks()) {
-//     return;
-//   }
-//   try {
-//     // Fetch the current employee data
-//     const currentDataResponse = await fetch(`http://localhost:5000/getEmployeeInfo/${employeeId}`);
-//     if (!currentDataResponse.ok) {
-//       throw new Error('Failed to fetch current employee data');
-//     }
-//     const currentData = await currentDataResponse.json();
-
-//     // Store previous values for all the fields being updated
-//     const previousValues = { ...currentData };
-
-
-//     // Fetch call to update employee information
-//     const response = await fetch(`http://localhost:5000/updateEmployeeInfo/${employeeId}`, {
-//       method: 'PUT',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify(employeeData),
-//     });
-
-//     if (!response.ok) {
-//       throw new Error('Failed to update employee');
-//     }
-
-//     // Retrieve the name of the employee from employeeData
-//     const { FirstName, LastName } = employeeData;
-//     const employeeName = `${FirstName} ${LastName}`;
-
-//     // Compare initial employeeData with updated employeeData
-//     const updatedFields = [];
-//     Object.entries(employeeData).forEach(([key, value]) => {
-//       if (value !== initialEmployeeData[key]) {
-//         updatedFields.push(key);
-//       }
-//     });
-
-//     // Filter out fields that contain EmployeeName, FirstName, MiddleName, LastName
-//     const filteredFields = updatedFields.filter(
-//       (field) => !['EmployeeName', 'FirstName', 'MiddleName', 'LastName', 'EmContactCompleteAddress'].includes(field)
-//     );
-
-//     // Generate success message based on updated fields
-//     let successMessage;
-//     if (filteredFields.length === 0) {
-//       successMessage = `No employee information has been updated for ${employeeName}.`;
-//     } else {
-//       successMessage = `Employee ${employeeName} has successfully updated ${filteredFields.join(', ')}!`;
-//     }
-
-//     // Retrieve user's first name from session storage
-//     const updatedByFirstName = sessionStorage.getItem('firstName');
-//     const updatedByLastName = sessionStorage.getItem('lastName');
-//     const updatedByRole = sessionStorage.getItem('role');
-//     const updatedBy = `${updatedByRole} ${updatedByFirstName} ${updatedByLastName}`;
-
-//     // Insert into History table for each updated field
-//     for (const field of filteredFields) {
-
-//       const newValue = employeeData[field];
-//       if (newValue === undefined || newValue === null) {
-//         console.error(`Invalid value for field ${field}: ${newValue}`);
-//         continue;
-//       }
-
-//       const historyData = {
-//         EmployeeName: employeeName,
-//         Action: 'Update',
-//         FieldName: field,
-//         OldValue: previousValues[field] || 'N/A',
-//         NewValue: employeeData[field],
-//         DateCreated: new Date().toISOString(),
-//         UpdatedBy: updatedBy,
-//         EmployeeId: employeeId,
-//         Remarks: employeeData.Remarks,
-//       };
-
-//       const historyResponse = await fetch('http://localhost:5000/addToHistory', {
-//         method: 'POST',
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: JSON.stringify(historyData),
-//       });
-
-//       if (!historyResponse.ok) {
-//         throw new Error('Failed to add record to History');
-//       }
-//     }
-
-//     // Display the success message
-//     alert(successMessage);
-
-//         // Refresh employee data after successful addition
-//         fetchEmployeeData();
-
-//      // Reload the page after showing the alert
-//      window.location.reload();
-
-//   } catch (error) {
-//     console.error('Error updating employee information:', error);
-//     // Send alert message for failure
-//     alert('Failed to update employee information. Please try again later.');
-//   }
-// };
 const handleFormEmpInfoSubmit = async (e) => {
   e.preventDefault(); // Prevent the default form submission
 
@@ -1810,10 +1754,69 @@ function isValidDate(dateString) {
 }
  //this only download data that are visible in the user interface table
   const handleDownloadExcel = () => {
-    const ws = XLSX.utils.json_to_sheet(filteredHistory);
+    // Clone and modify filteredHistory for desired changes
+    const modifiedHistory = filteredHistory.map(entry => {
+      const { HistoryID, NewValue, OldValue, ...rest } = entry;
+      return {
+        EmployeeId: entry.EmployeeId,
+        EmployeeName: entry.EmployeeName,
+        FieldName: entry.FieldName,
+        Action: entry.Action,
+        Old: OldValue,
+        New: NewValue,
+        Remarks: entry.Remarks,
+        DateCreated: entry.DateCreated,
+        UpdatedBy: entry.UpdatedBy
+      };
+    });
+  
+    // Apply uppercase to text fields
+    const upperCaseHistory = modifiedHistory.map(entry => {
+      const newEntry = {};
+      for (const key in entry) {
+        newEntry[key] = typeof entry[key] === 'string'
+          ? entry[key].toUpperCase()
+          : entry[key];
+      }
+      return newEntry;
+    });
+  
+    const ws = XLSX.utils.json_to_sheet(upperCaseHistory);
+  
+    // Auto-adjust column widths based on the longest cell value in each column
+    const colWidths = [];
+    const data = [Object.keys(upperCaseHistory[0])].concat(upperCaseHistory.map(obj => Object.values(obj)));
+  
+    data.forEach(row => {
+      row.forEach((val, idx) => {
+        const len = val ? val.toString().length : 10;
+        if (!colWidths[idx] || len > colWidths[idx].wch) {
+          colWidths[idx] = { wch: len };
+        }
+      });
+    });
+  
+    ws['!cols'] = colWidths;
+  
+    // Center text in each cell
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = ws[XLSX.utils.encode_cell({ r: R, c: C })];
+        if (cell) {
+          cell.s = {
+            alignment: {
+              horizontal: "center",
+              vertical: "center"
+            }
+          };
+        }
+      }
+    }
+  
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "History Report");
-
+  
     XLSX.writeFile(wb, "History_Report.xlsx");
   };
 
@@ -1962,7 +1965,6 @@ function isValidDate(dateString) {
                                               <input type="text" className="form-control" value={employeeData.AgeBracket} onChange={handleInputChange} name="AgeBracket"/>
                                               </div>
                                             </div>
-
                                 </div>
                                 <div className="row justify-content-center">
                                 <div className="col-md-4">
@@ -2205,19 +2207,19 @@ function isValidDate(dateString) {
                                               <div className="form-group">
                                               <label htmlFor="positionLevel">Position Level</label>
                                               <select className="form-control" value={employeeData.Level} name="Level" onChange={handleInputChange}>
-                                                        <option value="Level 1">Level 1</option>
-                                                        <option value="Level 2">Level 2</option>
-                                                        <option value="Level 3">Level 3</option>
-                                                        <option value="Level 4">Level 4</option>
-                                                        <option value="Level 5">Level 5</option>
-                                                        <option value="Level 6">Level 6</option>
-                                                        <option value="Level 7">Level 7</option>
-                                                        <option value="Level 8">Level 8</option>
-                                                        <option value="Level 9">Level 9</option>
-                                                        <option value="Level 10">Level 10</option>
-                                                        <option value="Level 11">Level 11</option>
-                                                        <option value="Level 12">Level 12</option>
-                                                        <option value="Level 13">Level 13</option>
+                                                        <option value="1">Level 1</option>
+                                                        <option value="2">Level 2</option>
+                                                        <option value="3">Level 3</option>
+                                                        <option value="4">Level 4</option>
+                                                        <option value="5">Level 5</option>
+                                                        <option value="6">Level 6</option>
+                                                        <option value="7">Level 7</option>
+                                                        <option value="8">Level 8</option>
+                                                        <option value="9">Level 9</option>
+                                                        <option value="10">Level 10</option>
+                                                        <option value="11">Level 11</option>
+                                                        <option value="12">Level 12</option>
+                                                        <option value="13">Level 13</option>
                                                     </select>
                                               </div>
                                             </div>
@@ -2475,7 +2477,7 @@ function isValidDate(dateString) {
                                             <div className="col-md-4">
                                               <div className="form-group">
                                               <label htmlFor="managerName">Manager Name</label>
-                                              <input type="text" className="form-control" value={employeeData.ManagerName} placeholder="enter manager name" name="ManagerName" onChange={handleInputChange} />
+                                              <input type="text" className="form-control" value={toSentenceCase(employeeData.ManagerName)} placeholder="enter manager name" name="ManagerName" onChange={handleInputChange} />
                                               </div>
                                             </div>
                                             <div className="col-md-4">
@@ -4918,15 +4920,22 @@ function isValidDate(dateString) {
                                         <div className="col-md-4">
                                           <div className="form-group">
                                             <label>Salary</label>
-                                            <input
-                                              type="text"
-                                              className="form-control"
-                                              placeholder="Enter Salary"
-                                              value={selectedCompBen?.Salary || ''}
-                                              onChange={(e) =>
-                                                setSelectedCompBen({ ...selectedCompBen, Salary: e.target.value })
-                                              }
-                                            />
+                                            {shouldShowSalary(employeeData.Level) ? (
+                                              <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="Enter Salary"
+                                                value={selectedCompBen?.Salary || ''}
+                                                onChange={(e) => setSelectedCompBen({ ...selectedCompBen, Salary: e.target.value })}
+                                              />
+                                            ) : (
+                                              <input
+                                                type="text"
+                                                className="form-control"
+                                                placeholder="Salary Hidden"
+                                                disabled
+                                              />
+                                            )}
                                           </div>
                                         </div>
                                         <div className="col-md-4">
@@ -5507,56 +5516,12 @@ function isValidDate(dateString) {
                                         </tr>
                                       </thead>
                                       <tbody>
-                        {filteredCompBen.length > 0 ? (
-                          filteredCompBen.map((compBen, index) => (
-                            <tr key={index}>
-                              <td>
-                              <button className="btn btn-xs btn-primary mr-2" onClick={() => handleShowEditCompBenModal(compBen)}>
-                                              <i className="fas fa-pencil-alt"></i>
-                              </button>
-                                </td>
-                                <td>₱{compBen.Salary}</td>  
-                                <td>₱{compBen.DailyEquivalent}</td> 
-                                <td>₱{compBen.MonthlyEquivalent}</td>
-                                <td>₱{compBen.AnnualEquivalent}</td>
-                                <td>₱{compBen.RiceMonthly}</td>
-                                <td>₱{compBen.RiceAnnual}</td>
-                                <td>₱{compBen.RiceDifferentialAnnual}</td>
-                                <td>₱{compBen.UniformAnnual}</td>
-                                <td>{compBen.LeaveDays}</td>
-                                <td>₱{compBen.LaundryAllowance}</td>
-                                <td>₱{compBen.CommAllowance}</td>
-                                <td>{compBen.CommAllowanceType}</td>
-                                <td>₱{compBen.CashGift}</td>
-                                <td>₱{compBen.MedicalInsurance}</td>
-                                <td>{compBen.FreeHMODependent}</td>
-                                <td>₱{compBen.MBL}</td>
-                                <td>₱{compBen.LifeInsurance}</td>
-                                <td>{compBen.Beneficiaries}</td>
-                                <td>{compBen.PersonalAccidentInsuranceBenefit}</td>
-                                <td>{compBen.PWDIDNumber}</td>
-                                <td>{compBen.TendopayRegistered}</td>
-                                <td>{compBen.CanteenUID}</td>
-                                <td>{compBen.CanteenCreditLimit}</td>
-                                <td>{compBen.CanteenBarcode}</td>
-                                <td>{compBen.DAPMembershipNumber}</td>
-                                <td>{compBen.DAPDependents}</td>
-                                <td>{compBen.Stat_SSSNumber}</td>
-                                <td>{compBen.Stat_SSSMonthlyContribution}</td>
-                                <td>{compBen.Stat_PagIbigNumber}</td>
-                                <td>{compBen.Stat_PagIbigMonthlyContribution}</td>
-                                <td>{compBen.Stat_PHICNumber}</td>
-                                <td>{compBen.Stat_PHICMonthlyContribution}</td>
-                                <td>{compBen.Stat_TINNumber}</td>
-                                <td>{compBen.CreatedAt}</td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="19">No compensation benefit data yet.</td>
-                          </tr>
-                        )}
-                      </tbody>
+        {filteredCompBen.length > 0 ? renderCompBenRows() : (
+          <tr>
+            <td colSpan="36">No compensation benefit data yet.</td>
+          </tr>
+        )}
+      </tbody>
                                     </table>
                                   </div>
                            </div>
@@ -5569,7 +5534,7 @@ function isValidDate(dateString) {
                         className="btn btn-primary mr-2"
                         onClick={handleDownloadExcel}
                       >
-                        <i className="fas fa-arrow-down"></i> History
+                        <i className="fas fa-arrow-down"></i> History Record
                       </button>
                       <br/>
                       <hr/>
