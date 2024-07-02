@@ -17,3 +17,13 @@
 * git checkout ownbranchNAME
 * git merge master
 * git push origin ownbranchNAME:master
+
+**IF CONFLICT (LIKE prompting you to enter a merge commit message) **
+
+* press i
+* type " Merge branch 'RONALYN' from remote repository "
+* Esc
+* Type :wq and press Enter to save and close the file (MERGE_MSG).
+* then git push origin branchname
+
+
