@@ -24,6 +24,6 @@
 * type " Merge branch 'RONALYN' from remote repository "
 * Esc
 * Type :wq and press Enter to save and close the file (MERGE_MSG).
-* then git push origin branchname
+* then git push origin ownBranchName or ownBranchName:master
 
 
