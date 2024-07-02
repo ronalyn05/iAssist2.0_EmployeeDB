@@ -25,7 +25,7 @@ const NewHireUpload = () => {
   const [activeTab, setActiveTab] = useState("upload");
   const [editModalShow, setEditModalShow] = useState(false);
   const [editRowData, setEditRowData] = useState(null);
-  const [editedData, setEditedData] = useState({}); // State to hold edited data
+  const [editedData, setEditedData] = useState({}); 
 
   const navigate = useNavigate();
 
@@ -294,10 +294,13 @@ const NewHireUpload = () => {
         await sendEmailNotification(templateParams);
       }
 
-      alert("Data saved successfully and emails sent.");
+      alert("Data has been successfully uploaded and Email sent successfully to account user!");
       setShowPreview(false);
       setActiveTab("upload");
       setExcelData([]);
+      console.log("Upload response:", response.data);
+      navigate("/reports"); // Navigate to report.js after successful upload
+
     } catch (error) {
       console.error("Error saving data:", error);
       alert(error.message);
@@ -498,7 +501,6 @@ const NewHireUpload = () => {
         {/* End of Content Wrapper */}
       </div>
       {/* End of Page Wrapper */}
-
       {/* Edit Modal */}
      
       <Modal

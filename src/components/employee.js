@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback} from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Link, useParams, useNavigate, useLocation } from "react-router-dom";
 import Navbar from "./navbar";
 import TopNavbar from "./topnavbar";
 import Footer from "./footer";
@@ -189,6 +189,16 @@ function Employee() {
                                   {employeeData.EmailAddress}
                                 </span>
                                 <br />
+                              </div>
+                            </div>
+                            <div className="col-md-9">
+                              <div className="form-group">
+                                <div className="text-center">
+                                <i className="fas fa-pencil-alt"></i>
+                                  <Link className="blueLabel labelWithSpacing" to="/profile">
+                                    Edit Profile?
+                                  </Link>
+                                </div>
                               </div>
                             </div>
                           </div>

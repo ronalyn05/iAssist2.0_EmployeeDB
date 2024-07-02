@@ -660,6 +660,7 @@ app.put('/updateEmployeeInfo/:employeeId', async (req, res) => {
   }
 
   try {
+      console.log(`Updating data for Employee ID: ${employeeId}`);
       const result = await dbOperation.updateEmployeeInfoById(employeeId, updatedEmployeeData);
       if (!result) {
           return res.status(404).json({ message: 'Employee information not found' });
@@ -670,7 +671,6 @@ app.put('/updateEmployeeInfo/:employeeId', async (req, res) => {
       res.status(500).json({ message: 'Internal server error' });
   }
 });
-
 // API endpoint for adding records to the History table
 app.post('/addToHistory', async (req, res) => {
   const historyData = req.body;
@@ -692,6 +692,7 @@ app.post('/addToHistory', async (req, res) => {
 app.get('/getEmployeeInfo/:employeeId', async (req, res) => {
   const { employeeId } = req.params;
   try {
+    console.log(`Fetching data for Employee ID: ${employeeId}`);
     const employeeData = await dbOperation.getEmployeeInfoById(employeeId);
     if (!employeeData) {
       return res.status(404).json({ message: 'Employee not found' });

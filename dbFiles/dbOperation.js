@@ -411,6 +411,57 @@ await pool
       AND S.EmployeeId = @EmployeeId
       AND DU.EmployeeId = @EmployeeId
   `);
+  //INSERT INTO COMPENSATION BENEFITS TBL
+  await pool
+  .request()
+  .input('EmployeeId', newHire.EmployeeId)
+  .input('Salary', newHire.Salary)
+  .input('DailyEquivalent', newHire.DailyEquivalent)
+  .input('MonthlyEquivalent', newHire.MonthlyEquivalent)
+  .input('AnnualEquivalent', newHire.AnnualEquivalent)
+  .input('RiceMonthly', newHire.RiceMonthly)
+  .input('RiceAnnual', newHire.RiceAnnual)
+  .input('RiceDifferentialAnnual', newHire.RiceDifferentialAnnual)
+  .input('UniformAnnual', newHire.UniformAnnual)
+  .input('LeaveDays', newHire.LeaveDays)
+  .input('LaundryAllowance', newHire.LaundryAllowance)
+  .input('CommAllowance', newHire.CommAllowance)
+  .input('CommAllowanceType', newHire.CommAllowanceType)
+  .input('CashGift', newHire.CashGift)
+  .input('MedicalInsurance', newHire.MedicalInsurance)
+  .input('FreeHMODependent', newHire.FreeHMODependent)
+  .input('MBL', newHire.MBL)
+  .input('LifeInsurance', newHire.LifeInsurance)
+  .input('Beneficiaries', newHire.Beneficiaries)
+  .input('PersonalAccidentInsuranceBenefit', newHire.PersonalAccidentInsuranceBenefit)
+  .input('PWDIDNumber', newHire.PWDIDNumber)
+  .input('TendopayRegistered', newHire.TendopayRegistered)
+  .input('CanteenUID', newHire.CanteenUID)
+  .input('CanteenCreditLimit', newHire.CanteenCreditLimit)
+  .input('CanteenBarcode', newHire.CanteenBarcode)
+  .input('DAPMembershipNumber', newHire.DAPMembershipNumber)
+  .input('DAPDependents', newHire.DAPDependents)
+  .input('Stat_SSSNumber', newHire.Stat_SSSNumber)
+  .input('Stat_SSSMonthlyContribution', newHire.Stat_SSSMonthlyContribution)
+  .input('Stat_PagIbigNumber', newHire.Stat_PagIbigNumber)
+  .input('Stat_PagIbigMonthlyContribution', newHire.Stat_PagIbigMonthlyContribution)
+  .input('Stat_PHICNumber', newHire.Stat_PHICNumber)
+  .input('Stat_PHICMonthlyContribution', newHire.Stat_PHICMonthlyContribution)
+  .input('Stat_TINNumber', newHire.Stat_TINNumber)
+  .query(`
+    INSERT INTO CompensationBenefits (EmployeeId, Salary, DailyEquivalent, MonthlyEquivalent, AnnualEquivalent, 
+    RiceMonthly, RiceAnnual, RiceDifferentialAnnual, UniformAnnual, LeaveDays, LaundryAllowance, CommAllowance, 
+    CommAllowanceType, CashGift, MedicalInsurance, FreeHMODependent, MBL, LifeInsurance, Beneficiaries, 
+    PersonalAccidentInsuranceBenefit, PWDIDNumber, TendopayRegistered, CanteenUID, CanteenCreditLimit, CanteenBarcode, 
+    DAPMembershipNumber, DAPDependents, Stat_SSSNumber, Stat_SSSMonthlyContribution, Stat_PagIbigNumber, Stat_PagIbigMonthlyContribution,
+    Stat_PHICNumber, Stat_PHICMonthlyContribution, Stat_TINNumber)
+    VALUES (@EmployeeId, @Salary, @DailyEquivalent, @MonthlyEquivalent, @AnnualEquivalent, @RiceMonthly, @RiceAnnual,
+    @RiceDifferentialAnnual, @UniformAnnual, @LeaveDays, @LaundryAllowance, @CommAllowance, @CommAllowanceType, @CashGift,
+    @MedicalInsurance, @FreeHMODependent, @MBL, @LifeInsurance, @Beneficiaries, @PersonalAccidentInsuranceBenefit, @PWDIDNumber,
+    @TendopayRegistered, @CanteenUID, @CanteenCreditLimit, @CanteenBarcode, @DAPMembershipNumber, @DAPDependents, @Stat_SSSNumber,
+    @Stat_SSSMonthlyContribution, @Stat_PagIbigNumber, @Stat_PagIbigMonthlyContribution, 
+    @Stat_PHICNumber, @Stat_PHICMonthlyContribution, @Stat_TINNumber)
+  `);
 
     //insertion of user account
     await pool
@@ -985,7 +1036,7 @@ const addToHistory = async (historyData) => {
       throw error;
   }
 };
-//retrieve employee info and user account
+// Retrieve employee info and user account by ID
 const getEmployeeInfoById = async (employeeId) => {
   try {
     let pool = await sql.connect(config);
@@ -997,6 +1048,12 @@ const getEmployeeInfoById = async (employeeId) => {
         JOIN UserAccount ua ON e.EmployeeId = ua.EmployeeId
         WHERE e.EmployeeId = @EmployeeId
       `);
+
+    if (result.recordset.length === 0) {
+      console.log(`No employee found with ID: ${employeeId}`);
+      return null;
+    }
+    
     return result.recordset[0];
   } catch (error) {
     console.error('Error fetching employee information by ID:', error);
