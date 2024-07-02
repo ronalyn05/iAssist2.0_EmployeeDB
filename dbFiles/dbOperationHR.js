@@ -286,7 +286,10 @@ const downloadSubmissions = async (name, transactionType, status, month, year, f
                         SubsWithRowNumber.EmailAddress,
                         SubsWithRowNumber.TransactionType,
                         FORMAT(CONVERT(DATETIME, SubsWithRowNumber.DateTime, 120), 'MMMM dd, yyyy') AS DateTime,
-                        FORMAT(CONVERT(DATETIME, SubsWithRowNumber.CompletionDate, 120), 'MMMM dd, yyyy') AS CompletionDate,
+                        CASE 
+                            WHEN SubsWithRowNumber.CompletionDate IS NULL OR SubsWithRowNumber.CompletionDate = '' THEN ''
+                            ELSE FORMAT(CONVERT(DATETIME, SubsWithRowNumber.CompletionDate, 120), 'MMMM dd, yyyy')
+                        END AS CompletionDate,
                         SubsWithRowNumber.Status
                     FROM (
                         SELECT  
