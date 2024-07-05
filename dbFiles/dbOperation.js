@@ -485,6 +485,444 @@ await pool
     throw new Error('Failed to insert new data.');
   }
 };
+// Function to update employee information in the database
+const updateEmployee = async (employeeId, updatedEmployeeData) => {
+  try {
+    let pool = await sql.connect(config);
+
+    // // Validate and convert bit fields
+    // const validateAndConvertBit = (value) => {
+    //   if (value === "0" || value === "1") {
+    //     return Boolean(parseInt(value));
+    //   } else {
+    //     throw new Error(
+    //       "Invalid value for bit field. Please enter either '0' for 'yes' or '1' for 'no'."
+    //     );
+    //   }
+    // };
+
+    // Update EmpPersonalDetails table
+    let result = await pool 
+      .request()
+      .input("EmployeeId", sql.VarChar, employeeId)
+      .input("EmployeeName", updatedEmployeeData.EmployeeName.trim())
+      .input("LastName", updatedEmployeeData.LastName.trim())
+      .input("FirstName", updatedEmployeeData.FirstName.trim())
+      .input("MiddleName", updatedEmployeeData.MiddleName.trim())
+      .input("MaidenName", updatedEmployeeData.MaidenName.trim())
+      .input("Birthdate", updatedEmployeeData.Birthdate.trim())
+      .input("Age", sql.VarChar(255), String(updatedEmployeeData.Age).trim())
+      .input("BirthMonth", updatedEmployeeData.BirthMonth.trim())
+      .input("AgeBracket", updatedEmployeeData.AgeBracket.trim())
+      .input("Gender", updatedEmployeeData.Gender.trim())
+      .input("MaritalStatus", updatedEmployeeData.MaritalStatus.trim())
+      .input("SSS", updatedEmployeeData.SSS.trim())
+      .input("PHIC", updatedEmployeeData.PHIC.trim())
+      .input("HDMF", updatedEmployeeData.HDMF.trim())
+      .input("TIN", updatedEmployeeData.TIN.trim())
+      .input("EmailAddress", updatedEmployeeData.EmailAddress.trim())
+      .input("HmoProvider", updatedEmployeeData.HmoProvider.trim())
+      .input("HmoPolicyNumber", updatedEmployeeData.HmoPolicyNumber.trim())
+      .query(`
+          UPDATE EmpPersonalDetails 
+          SET EmployeeId = @EmployeeId,
+              EmployeeName = @EmployeeName,
+              LastName = @LastName, 
+              FirstName = @FirstName,
+              MiddleName = @MiddleName,
+              MaidenName = @MaidenName, 
+              Birthdate = @Birthdate,
+              Age = @Age,
+              BirthMonth = @BirthMonth,
+              AgeBracket = @AgeBracket,
+              Gender = @Gender,
+              MaritalStatus = @MaritalStatus,
+              SSS = @SSS,
+              PHIC = @PHIC,
+              HDMF = @HDMF,
+              TIN = @TIN,
+              EmailAddress = @EmailAddress,
+              HmoProvider = @HmoProvider,
+              HmoPolicyNumber = @HmoPolicyNumber
+          WHERE EmployeeId = @employeeId
+      `);
+       // Update the contact number in the Contact table first
+       await pool
+       .request()
+       .input("EmployeeId",  employeeId)
+       .input("ContactNumber",  updatedEmployeeData.ContactNumber)
+       .query(`
+         UPDATE Contact
+         SET ContactNumber = @ContactNumber
+         WHERE EmployeeId = @EmployeeId
+         AND NOT EXISTS (
+           SELECT 1
+           FROM EmergencyContactNumber
+           WHERE ContactId = Contact.ContactId
+         );
+       `);
+       // Update the contact number in the Contact table first
+        // await pool
+        // .request()
+        // .input("EmployeeId", sql.VarChar, employeeId)
+        // .input("ContactNumber", sql.VarChar(255), updatedEmployeeData.ContactNumber || '') // Ensure ContactNumber is not null or undefined
+        // .query(`
+        //   UPDATE Contact
+        //   SET ContactNumber = @ContactNumber
+        //   WHERE EmployeeId = @EmployeeId
+        //   AND NOT EXISTS (
+        //     SELECT 1
+        //     FROM EmergencyContactNumber
+        //     WHERE ContactId = Contact.ContactId
+        //   );
+        // `);
+
+       //Update employment info
+       await pool
+       .request()
+       .input("EmployeeId", employeeId)
+       .input("HRANID",  updatedEmployeeData.HRANID)
+       .input("DateHired", sql.Date, updatedEmployeeData.DateHired)
+       .input("Tenure", updatedEmployeeData.Tenure)
+       .input("Level", updatedEmployeeData.Level)
+       .input("EmploymentStatus", updatedEmployeeData.EmploymentStatus)
+       .input("EmployeeStatus", updatedEmployeeData.EmployeeStatus)
+       .input("EmployeeRole", updatedEmployeeData.EmployeeRole)
+       .input("EmployeeCategory",  updatedEmployeeData.EmployeeCategory)
+       .input("Facility", updatedEmployeeData.Facility)
+       .input("WorkWeekType", updatedEmployeeData.WorkWeekType)
+       .input("WorkArrangement", updatedEmployeeData.WorkArrangement)
+       .input("RateClass", updatedEmployeeData.RateClass)
+       .input("Rate", updatedEmployeeData.Rate)
+       .input("ManagerID", updatedEmployeeData.ManagerID)
+       .input("ManagerName", updatedEmployeeData.ManagerName)
+       .input("PMPICID", updatedEmployeeData.PMPICID)
+       .input("PMPICIDName", updatedEmployeeData.PMPICIDName)
+       .input("DUHID", updatedEmployeeData.DUHID)
+       .input("DUHName", updatedEmployeeData.DUHName)
+       .input("IsManager", sql.Bit, updatedEmployeeData.IsManager ? 1 : 0)
+       .input("IsPMPIC", sql.Bit, updatedEmployeeData.IsPMPIC ? 1 : 0)
+       .input("IsIndividualContributor", sql.Bit, updatedEmployeeData.IsIndividualContributor ? 1 : 0)
+       .input("IsActive", sql.Bit, updatedEmployeeData.IsActive ? 1 : 0)
+       .input("HRANType", updatedEmployeeData.HRANType)
+       .input("TITOType", updatedEmployeeData.TITOType)
+       .input("Position", updatedEmployeeData.Position)
+       .input("IsDUHead", sql.Bit, updatedEmployeeData.IsDUHead ? 1 : 0)
+       .query(`
+           UPDATE EmployeeInfo 
+           SET HRANID = @HRANID,
+               DateHired = @DateHired,
+               Tenure = @Tenure,
+               Level = @Level,
+               EmploymentStatus = @EmploymentStatus,
+               EmployeeStatus = @EmployeeStatus,
+               EmployeeRole = @EmployeeRole,
+               EmployeeCategory = @EmployeeCategory,
+               Facility = @Facility,
+               WorkWeekType = @WorkWeekType,
+               WorkArrangement = @WorkArrangement,
+               RateClass = @RateClass,
+               Rate = @Rate,
+               ManagerID = @ManagerID,
+               ManagerName = @ManagerName,
+               PMPICID = @PMPICID,
+               PMPICIDName = @PMPICIDName,
+               DUHID = @DUHID,
+               DUHName = @DUHName,
+               IsManager = @IsManager,
+               IsPMPIC = @IsPMPIC,
+               IsIndividualContributor = @IsIndividualContributor,
+               IsActive = @IsActive,
+               HRANType = @HRANType,
+               TITOType = @TITOType,
+               Position = @Position,
+               IsDUHead = @IsDUHead
+           WHERE EmployeeId = @EmployeeId
+         `);
+ 
+         //update project table
+         await pool
+       .request()
+       .input("EmployeeId", employeeId)
+      //  .input("ProjectCode", updatedEmployeeData.ProjectCode)
+      //  .input("ProjectName", updatedEmployeeData.ProjectName)
+      .input("ProjectCode", updatedEmployeeData.ProjectCode || '') 
+      .input("ProjectName", updatedEmployeeData.ProjectName || '') 
+       .input("is_Active", sql.Bit, updatedEmployeeData.is_Active ? 1 : 0)
+       .query(`
+           UPDATE Project 
+           SET ProjectCode = @ProjectCode,
+           ProjectName = @ProjectName,
+           is_Active = @is_Active
+           WHERE EmployeeId = @EmployeeId
+         `);
+ 
+         //update product table
+         await pool
+       .request()
+       .input("EmployeeId", employeeId)
+       .input("ProdCode", updatedEmployeeData.ProdCode)
+       .input("ProdDesc", updatedEmployeeData.ProdDesc)
+       .query(`
+           UPDATE Product 
+           SET ProdCode = @ProdCode,
+           ProdDesc  = @ProdDesc
+           WHERE EmployeeId = @EmployeeId
+         `);
+         
+         //update shift details
+         await pool
+       .request()
+       .input("EmployeeId", employeeId)
+       .input("ShiftCode", updatedEmployeeData.ShiftCode)
+       .input("ShiftName", updatedEmployeeData.ShiftName)
+       .input("ShiftType", updatedEmployeeData.ShiftType)
+       .input("LevelID", updatedEmployeeData.LevelID)
+       .query(`
+           UPDATE Shift 
+           SET ShiftCode = @ShiftCode,
+           ShiftName = @ShiftName,
+           ShiftType = @ShiftType,
+           LevelID = @LevelID
+           WHERE EmployeeId = @EmployeeId
+         `);
+         //update department details
+         await pool
+         .request()
+         .input("EmployeeId", employeeId)
+         .input("DepartmentName", updatedEmployeeData.DepartmentName)
+         .query(`
+             UPDATE Department 
+             SET DepartmentName = @DepartmentName
+             WHERE EmployeeId = @EmployeeId
+           `);
+           //update delivery unit details
+           await pool
+          .request()
+          .input("EmployeeId", employeeId)
+          .input("DUCode", updatedEmployeeData.DUCode)
+          .input("DUName", updatedEmployeeData.DUName)
+          .input("Is_Active", sql.Bit, updatedEmployeeData.Is_Active ? 1 : 0)
+          .query(`
+              UPDATE DeliveryUnit 
+              SET DUCode = @DUCode,
+              DUName = @DUName,
+              Is_Active = @Is_Active
+              WHERE EmployeeId = @EmployeeId
+            `);
+          //update employee user account role
+          await pool
+          .request()
+          .input("EmployeeId", employeeId)
+          .input("Role", updatedEmployeeData.Role)
+          .query(`
+              UPDATE UserAccount 
+              SET Role = @Role
+              WHERE EmployeeId = @EmployeeId
+            `);
+
+    // Update Address table 
+    await pool
+      .request()
+      .input("EmployeeId", employeeId)
+      .input("AddressId", updatedEmployeeData.AddressId)
+      .input("HouseNumber", updatedEmployeeData.HouseNumber)
+      .input("CompleteAddress", updatedEmployeeData.CompleteAddress)
+      .input("Barangay", updatedEmployeeData.Barangay)
+      .input("CityMunicipality", updatedEmployeeData.CityMunicipality)
+      .input("Province", updatedEmployeeData.Province)
+      .input("Region", updatedEmployeeData.Region)
+      .input("Country", updatedEmployeeData.Country)
+      .input("ZipCode", updatedEmployeeData.ZipCode)
+      .input("Landmark", updatedEmployeeData.Landmark)
+      .input("IsPermanent", sql.Bit, updatedEmployeeData.IsPermanent ? 1 : 0)
+      .input("IsEmergency", sql.Bit, updatedEmployeeData.IsEmergency ? 1 : 0)
+      .query(`
+          UPDATE Address 
+          SET HouseNumber = @HouseNumber,
+              CompleteAddress = @CompleteAddress,
+              Barangay = @Barangay,
+              CityMunicipality = @CityMunicipality,
+              Province = @Province,
+              Region = @Region,
+              Country = @Country,
+              Zipcode = @Zipcode,
+              Landmark = @Landmark,
+              IsPermanent = @IsPermanent,
+              IsEmergency = @IsEmergency
+          WHERE EmployeeId = @EmployeeId
+          AND AddressId NOT IN (SELECT AddressId FROM EmergencyContactNumber);
+        `);
+
+      //update employee eduucation details
+      await pool
+      .request()
+      .input("EmployeeId",  employeeId)
+      .input("School", updatedEmployeeData.School)
+      .input("EducationLevel", updatedEmployeeData.EducationLevel)
+      .input("UnitsEarned", updatedEmployeeData.UnitsEarned)
+      .input("Degree", updatedEmployeeData.Degree)
+      .input("MajorCourse", updatedEmployeeData.MajorCourse)
+      .input("HonorRank", updatedEmployeeData.HonorRank)
+      .input("Session", updatedEmployeeData.Session)
+      .input("DateFrom", updatedEmployeeData.DateFrom)
+      .input("DateTo", updatedEmployeeData.DateTo)
+      .input("MonthCompleted", updatedEmployeeData.MonthCompleted)
+      .input("Completed", updatedEmployeeData.Completed)
+      .query(`
+          UPDATE Education 
+          SET 
+          School = @School,
+          EducationLevel = @EducationLevel,
+          Degree = @Degree,
+          UnitsEarned =@UnitsEarned,
+          MajorCourse = @MajorCourse,
+          HonorRank = @HonorRank,
+          Session = @Session,
+          DateFrom = @DateFrom,
+          DateTo = @DateTo,
+          MonthCompleted = @MonthCompleted,
+          Completed = @Completed
+          WHERE EmployeeId = @EmployeeId
+        `);
+
+         await pool
+        .request()
+        .input("EmployeeId", employeeId)
+        .input("AddressId", updatedEmployeeData.AddressId)
+        .input("HouseNumber", updatedEmployeeData.EmContactHouseNo)
+        .input("CompleteAddress",  updatedEmployeeData.EmContactCompleteAddress)
+        .input("Barangay", updatedEmployeeData.EmContactBarangay)
+        .input("CityMunicipality", updatedEmployeeData.EmContactCityMunicipality)
+        .input("Province", updatedEmployeeData.EmContactProvince)
+        .input("Region", updatedEmployeeData.EmContactRegion)
+        .input("Country", updatedEmployeeData.EmContactCountry)
+        .input("ZipCode", updatedEmployeeData.EmContactZipcode)
+        .input("Landmark", updatedEmployeeData.EmContactLandMark)
+        .input("IsPermanent", sql.Bit, updatedEmployeeData.Is_Permanent ? 1 : 0)
+        .input("IsEmergency", sql.Bit, updatedEmployeeData.Is_Emergency ? 1 : 0.)
+        .query(`
+            UPDATE Address 
+            SET HouseNumber = @HouseNumber,
+                CompleteAddress = @CompleteAddress,
+                Barangay = @Barangay,
+                CityMunicipality = @CityMunicipality,
+                Province = @Province,
+                Region = @Region,
+                Country = @Country,
+                Zipcode = @ZipCode,
+                Landmark = @Landmark,
+                IsPermanent = @IsPermanent,
+                IsEmergency = @IsEmergency
+            WHERE EmployeeId = @EmployeeId
+             AND AddressID IN (SELECT AddressID FROM EmergencyContactNumber)
+          `);
+
+          await pool
+          .request()
+          .input("CompBenId", updatedEmployeeData.compBenId)
+          .input("Salary", updatedEmployeeData.Salary)
+          .input("DailyEquivalent", updatedEmployeeData.DailyEquivalent)
+          .input("MonthlyEquivalent", updatedEmployeeData.MonthlyEquivalent)
+          .input("AnnualEquivalent", updatedEmployeeData.AnnualEquivalent)
+          .input("RiceMonthly", updatedEmployeeData.RiceMonthly)
+          .input("RiceAnnual", updatedEmployeeData.RiceAnnual)
+          .input("RiceDifferentialAnnual", updatedEmployeeData.RiceDifferentialAnnual)
+          .input("LeaveDays", updatedEmployeeData.LeaveDays)
+          .input("LaundryAllowance", updatedEmployeeData.LaundryAllowance)
+          .input("CommAllowance", updatedEmployeeData.CommAllowance)
+          .input("CommAllowanceType", updatedEmployeeData.CommAllowanceType)
+          .input("CashGift", updatedEmployeeData.CashGift)
+          .input("MedicalInsurance", updatedEmployeeData.MedicalInsurance)
+          .input("FreeHMODependent", updatedEmployeeData.FreeHMODependent)
+          .input("MBL", updatedEmployeeData.MBL)
+          .input("LifeInsurance", updatedEmployeeData.LifeInsurance)
+          .input("Beneficiaries", updatedEmployeeData.Beneficiaries)
+          .input("PersonalAccidentInsuranceBenefit", updatedEmployeeData.PersonalAccidentInsuranceBenefit)
+          .input("PWDIDNumber", updatedEmployeeData.PWDIDNumber)
+          .input("TendopayRegistered", updatedEmployeeData.TendopayRegistered)
+          .input("CanteenUID", updatedEmployeeData.CanteenUID)
+          .input("CanteenCreditLimit", updatedEmployeeData.CanteenCreditLimit)
+          .input("CanteenBarcode", updatedEmployeeData.CanteenBarcode)
+          .input("DAPMembershipNumber", updatedEmployeeData.DAPMembershipNumber)
+          .input("DAPDependents", updatedEmployeeData.DAPDependents)
+          .input("Stat_SSSNumber", updatedEmployeeData.Stat_SSSNumber)
+          .input("Stat_SSSMonthlyContribution", updatedEmployeeData.Stat_SSSMonthlyContribution)
+          .input("Stat_PagIbigNumber", updatedEmployeeData.PersonalAccidentInsuranceBenefit)
+          .input("Stat_PagIbigMonthlyContribution", updatedEmployeeData.Stat_PagIbigMonthlyContribution)
+          .input("Stat_PHICNumber", updatedEmployeeData.Stat_PHICNumber)
+          .input("Stat_PHICMonthlyContribution", updatedEmployeeData.Stat_PHICMonthlyContribution)
+          .input("Stat_TINNumber", updatedEmployeeData.Stat_TINNumber)
+          .query(`
+              UPDATE CompensationBenefits 
+              SET Salary = @Salary,
+                  DailyEquivalent = @DailyEquivalent,
+                  MonthlyEquivalent = @MonthlyEquivalent,
+                  AnnualEquivalent = @AnnualEquivalent,
+                  RiceMonthly = @RiceMonthly,
+                  RiceAnnual = @RiceAnnual,
+                  RiceDifferentialAnnual = @RiceDifferentialAnnual,
+                  LeaveDays = @LeaveDays,
+                  LaundryAllowance = @LaundryAllowance,
+                  CommAllowance = @CommAllowance,
+                  CommAllowanceType = @CommAllowanceType,
+                  CashGift = @CashGift,
+                  MedicalInsurance = @MedicalInsurance,
+                  FreeHMODependent = @FreeHMODependent,
+                  MBL = @MBL,
+                  LifeInsurance = @LifeInsurance,
+                  Beneficiaries = @Beneficiaries,
+                  PersonalAccidentInsuranceBenefit = @PersonalAccidentInsuranceBenefit,
+                  PWDIDNumber = @PWDIDNumber,
+                  TendopayRegistered = @TendopayRegistered,
+                  CanteenUID = @CanteenUID,
+                  CanteenCreditLimit = @CanteenCreditLimit,
+                  CanteenBarcode = @CanteenBarcode,
+                  DAPMembershipNumber = @DAPMembershipNumber,
+                  DAPDependents = @DAPDependents,
+                  Stat_SSSNumber = @Stat_SSSNumber,
+                  Stat_SSSMonthlyContribution = @Stat_SSSMonthlyContribution,
+                  Stat_PagIbigNumber = @Stat_PagIbigNumber,
+                  Stat_PagIbigMonthlyContribution = @Stat_PagIbigMonthlyContribution,
+                  Stat_PHICNumber = @Stat_PHICNumber,
+                  Stat_PHICMonthlyContribution = @Stat_PHICMonthlyContribution,
+                  Stat_TINNumber = Stat_TINNumber
+              WHERE CompBenId = @CompBenId
+            `);
+  
+      // Update the contact details for the emergency contact
+      await pool
+        .request()
+        .input("EmployeeId", employeeId)
+        .input("EmContactFullName", updatedEmployeeData.EmContactFullName)
+        .query(`
+            UPDATE EmergencyContactNumber
+            SET EmContactFullName = @EmContactFullName
+            WHERE EmployeeId = @EmployeeId;
+          `);
+  
+      // Update the contact number for the emergency contact
+       await pool
+        .request()
+        .input("EmployeeId", employeeId)
+        .input("ContactNumber", updatedEmployeeData.EmContactPhoneNumber)
+        .query(`
+            UPDATE Contact 
+            SET ContactNumber = @ContactNumber
+            WHERE EmployeeId = @EmployeeId
+            AND ContactId IN (SELECT ContactId FROM EmergencyContactNumber);
+          `);
+
+          console.log(`Employee ${employeeId} updated successfully.`);
+
+          return result;
+
+        } catch (error) {
+    console.error("Error updating employee by ID:", error);
+    throw error;
+  }
+};
+
 //update password / changing of password
 const updateUserPassword = async (employeeId, newPassword) => {
   try {
@@ -575,13 +1013,26 @@ const getAllEmployees = async () => {
     SELECT 
     PD.EmployeeId,
     UA.Role,
+    PD.EmployeeName,
     PD.FirstName,
     PD.LastName,
     PD.Birthdate,
     PD.MiddleName, 
     PD.MaidenName,
-    PD.EmployeeName,
+    PD.Age,
+    PD.BirthMonth,
+    PD.AgeBracket,
+    PD.Gender,
+    PD.MaritalStatus,
+    PD.SSS,
+    PD.PHIC,
+    PD.HDMF,
+    PD.TIN,
+    PD.EmailAddress,
+    PD.HmoProvider,
+    PD.HmoPolicyNumber,
     EI.*,
+    EI.IsActive,
     ADDRESS.CompleteAddress AS EmContactCompleteAddress,
     ADDRESS.HouseNumber AS EmContactHouseNo,
     ADDRESS.Barangay AS EmContactBarangay,
@@ -591,8 +1042,8 @@ const getAllEmployees = async () => {
     ADDRESS.Country AS EmContactCountry,
     ADDRESS.ZipCode AS EmContactZipcode,
     ADDRESS.LandMark AS EmContactLandMark,
-    ADDRESS.IsPermanent AS Is_Permanent,
-    ADDRESS.IsEmergency AS Is_Emergency,
+    ADDRESS.IsPermanent AS IsPermanent,
+    ADDRESS.IsEmergency AS IsEmergency,
     CONTACT.ContactNumber AS EmContactPhoneNumber,
     EDUC.*,
     EC.*,    
@@ -601,7 +1052,10 @@ const getAllEmployees = async () => {
     DEPDNT.*,   
     DU.DUCode,
     DU.DUName AS DUName,
+    DU.Is_Active,
     DEPT.DepartmentName,
+    PROJ.is_Active,
+    PROJ.ProjectCode,
     PROD.*
 FROM (
     SELECT DISTINCT EmployeeId FROM EmpPersonalDetails
@@ -618,7 +1072,9 @@ LEFT JOIN Department AS DEPT ON PD.EmployeeId = DEPT.EmployeeId
 LEFT JOIN Shift AS SHFT ON PD.EmployeeId = SHFT.EmployeeId
 LEFT JOIN CompensationBenefits AS COMPBEN ON PD.EmployeeId = COMPBEN.EmployeeId
 LEFT JOIN Dependent AS DEPDNT ON PD.EmployeeId = DEPDNT.EmployeeId
-LEFT JOIN Product AS PROD ON PD.EmployeeId = PROD.EmployeeId;
+LEFT JOIN Product AS PROD ON PD.EmployeeId = PROD.EmployeeId
+LEFT JOIN Project AS PROJ ON PD.EmployeeId = PROJ.EmployeeId;
+
     `);
 
      const employees = result.recordset.reduce((acc, employee) => {
@@ -2014,6 +2470,7 @@ module.exports = {
   insertEmployee,
   getEmployees,
   insertNewHire,
+  updateEmployee,
   getAllNewHireEmployees,
   updateEmployeeById,
   getEmployeeById,
