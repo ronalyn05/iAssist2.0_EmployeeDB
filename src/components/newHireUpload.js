@@ -459,28 +459,17 @@ const NewHireUpload = () => {
     setEditUpdateModalShow(false);
   };
   
- // Function of insertion of data
- const handleUpdateEmployeeInfo = async () => {
+// Function to handle updating the list of employee data
+const handleUpdateEmployeeInfo = async () => {
   console.log("Updating Employee Information...");
-  console.log("Excel Data:", excelData);
+  console.log("Excel Data:", updateExcelData);
 
   try {
-    // Check for empty fields in any row
-    const hasEmptyFields = excelData.some((row) =>
-      Object.values(row).some((value) => isFieldEmpty(value))
-    );
-
-    if (hasEmptyFields) {
-      throw new Error(
-        "One or more fields are empty. Please fill in all fields."
-      );
-    }
-
     // Validate bit fields
     const validateBitFields = () => {
       const invalidFields = [];
 
-      excelData.forEach((row, index) => {
+      updateExcelData.forEach((row, index) => {
         const validateField = (fieldName, validValues) => {
           if (!validValues.includes(row[fieldName])) {
             invalidFields.push(`${fieldName} in row ${index + 1}`);
@@ -499,24 +488,16 @@ const NewHireUpload = () => {
       });
 
       if (invalidFields.length > 0) {
-        throw new Error(
-          `Invalid values detected:\n${invalidFields.join("\n")}`
-        );
+        throw new Error(`Invalid values detected:\n${invalidFields.join("\n")}`);
       }
     };
 
     validateBitFields();
 
     // Format date fields
-    const formattedData = excelData.map((row) => {
+    const formattedData = updateExcelData.map((row) => {
       const formattedRow = { ...row };
-      const dateFields = [
-        "Birthdate",
-        "DateHired",
-        "DateTo",
-        "DateFrom",
-        "DateOfBirth",
-      ];
+      const dateFields = ["Birthdate", "DateHired", "DateTo", "DateFrom", "DateOfBirth"];
       dateFields.forEach((field) => {
         formattedRow[field] = convertExcelDateToDate(row[field]);
       });
@@ -527,34 +508,31 @@ const NewHireUpload = () => {
     const updateResponses = await Promise.all(
       formattedData.map(async (row) => {
         const { EmployeeId } = row;
-        const response = await axios.put(
-          `api/updateListofEmployee/${EmployeeId}`,
-          row,
-          {
+        try {
+          const response = await axios.put(`/api/updateListofEmployee/${EmployeeId}`, row, {
             headers: {
               "Content-Type": "application/json",
             },
-          }
-        );
-        return response.data; 
+          });
+          return response.data;
+        } catch (error) {
+          console.error(`Error updating employee ${EmployeeId}:`, error);
+          return { EmployeeId, status: "error", message: error.message };
+        }
       })
     );
 
     // Check responses for success or failure
-    const failedUpdates = updateResponses.filter(
-      (response) => response.status !== "success"
-    );
+    const failedUpdates = updateResponses.filter((response) => response.status !== "success");
 
     if (failedUpdates.length > 0) {
       const failedIds = failedUpdates.map((response) => response.EmployeeId);
-      throw new Error(
-        `Failed to update information for Employee IDs: ${failedIds.join(", ")}`
-      );
+      throw new Error(`Failed to update information for Employee IDs: ${failedIds.join(", ")}`);
     }
 
     alert("Employee information has been successfully updated!");
     setShowUpdatePreview(false);
-    setExcelData([]);
+    setUpdateExcelData([]); // Clear excelData after successful update
     console.log("Update responses:", updateResponses);
     navigate("/reports"); // Navigate to report.js after successful update
 

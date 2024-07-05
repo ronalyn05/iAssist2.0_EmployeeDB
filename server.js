@@ -542,6 +542,20 @@ app.get('/api/getUserData/:employeeId', async (req, res) => {
     }
   });
 
+// PUT endpoint to update employee information
+app.put('/api/updateListofEmployee/:EmployeeId', async (req, res) => {
+  const employeeId = req.params.EmployeeId;
+  const updatedEmployeeData = req.body;
+
+  try {
+    await dbOperation.updateEmployee(employeeId, updatedEmployeeData);
+    res.status(200).json({ status: 'success', message: 'Employee data updated successfully' });
+  } catch (error) {
+    console.error("Error updating employee data:", error);
+    res.status(500).json({ status: 'error', message: 'Internal server error' });
+  }
+});
+
 // Endpoint to retrieve employee data
 app.get('/newHireEmp', async (req, res) => {
   try {
