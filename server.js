@@ -254,8 +254,8 @@ app.post('/getnotificationsforviewall',  upload.single('EmpId'), async (req, res
   }
 });
 
-
 //RONALYN - EMPLOYEE DB STARTS HERE
+
 // Generate a random string
 const generateRandomString = (length) => {
   return crypto.randomBytes(Math.ceil(length / 2))
@@ -603,8 +603,7 @@ app.post('/addContactNumber/:employeeId', async (req, res) => {
   const { employeeId } = req.params;
   const newContactData = req.body;
   try {
-    // const result = await dbOperation.insertDependent(employeeId, newDependentData);
-    await dbOperation.getAddNewContactId(employeeId, newContactData); // No need to assign to result if not used
+    await dbOperation.getAddNewContactId(employeeId, newContactData); 
     res.json({ message: 'Secondary contact number added successfully' });
   } catch (error) {
     console.error('Error adding Contact number:', error);
@@ -813,7 +812,6 @@ app.put('/updateDepartment/:employeeId', async (req, res) => {
     const { employeeId } = req.params;
     const newDependentData = req.body;
     try {
-      // const result = await dbOperation.insertDependent(employeeId, newDependentData);
       await dbOperation.insertDependent(employeeId, newDependentData); 
       res.json({ message: 'Dependent record added successfully' });
     } catch (error) {

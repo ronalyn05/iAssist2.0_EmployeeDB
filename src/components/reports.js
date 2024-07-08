@@ -135,9 +135,8 @@ const Reports = () => {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
   };
+
   //this downloads all the employee data in multiple tables
-  // Function to handle Excel download
-// Function to handle Excel download
 const handleDownloadExcel = async () => {
   try {
     // Fetch data from the backend
@@ -248,108 +247,6 @@ const handleDownloadExcel = async () => {
     alert("Failed to download data. Please try again.");
   }
 };
-
-  
-  // const handleDownloadExcel = async () => {
-  //   try {
-  //     // Fetch data from the backend
-  //     const response = await axios.get("/api/getAllEmployees");
-
-  //     if (response.status !== 200) {
-  //       throw new Error("Failed to fetch data");
-  //     }
-
-  //     const data = response.data;
-
-  //     // Log the response data to inspect
-  //     console.log("Data from backend:", data);
-
-  //     // Specify fields to exclude
-  //     const excludedFields = [
-  //       "EmpInfoID",
-  //       "ProjectId",
-  //       "DepartmentId",
-  //       "ProdId",
-  //       "ShiftId",
-  //       "EducationID",
-  //       "AddressID",
-  //       "ContactId",
-  //       "ShiftID",
-  //       "DependentID",
-  //       "CreatedAt",
-  //     ];
-
-  //     // Extract headers (field names) dynamically from the first row of data
-  //     const headers = Object.keys(data[0]).filter(
-  //       (field) => !excludedFields.includes(field)
-  //     );
-
-  //     // Format date fields and other specific fields
-  //     const formattedData = data.map((row) => {
-  //       const formattedRow = {};
-  //       headers.forEach((field) => {
-  //         if (
-  //           [
-  //             "FirstName",
-  //             "LastName",
-  //             "MiddleName",
-  //             "MaidenName",
-  //             "EmployeeName",
-  //             "DUName",
-  //             "DepartmentName",
-  //             "ManagerName",
-  //             "PMPICIDName",
-  //             "EmploymentStatus",
-  //           ].includes(field)
-  //         ) {
-  //           formattedRow[field] = row[field] ? toTitleCase(row[field]) : "";
-  //         } else if (
-  //           field === "Birthdate" ||
-  //           field === "DateHired" ||
-  //           field === "DateTo" ||
-  //           field === "DateFrom" ||
-  //           field === "DateOfBirth"
-  //         ) {
-  //           formattedRow[field] = row[field]
-  //             ? new Date(row[field]).toLocaleDateString()
-  //             : "";
-  //         } else if (field === "EmployeeId") {
-  //           // Ensure array fields are joined properly
-  //           formattedRow[field] = Array.isArray(row[field])
-  //             ? row[field][0]
-  //             : row[field];
-  //         } else {
-  //           formattedRow[field] = row[field];
-  //         }
-  //       });
-  //       return formattedRow;
-  //     });
-
-  //     // Create a worksheet from the formatted data
-  //     const ws = XLSX.utils.json_to_sheet(formattedData, { header: headers });
-
-  //     // Auto-adjust column widths based on the longest cell value in each column
-  //     const maxLengths = headers.map((header) =>
-  //       Math.max(
-  //         ...formattedData.map((row) =>
-  //           row[header] ? row[header].toString().length : 0
-  //         ),
-  //         header.length
-  //       )
-  //     );
-  //     ws["!cols"] = maxLengths.map((length) => ({ width: length + 2 }));
-
-  //     const wb = XLSX.utils.book_new();
-  //     XLSX.utils.book_append_sheet(wb, ws, "Employees Data Report");
-
-  //     // Write the workbook to a file
-  //     XLSX.writeFile(wb, "Employees_Report.xlsx");
-  //     alert("File has been successfully downloaded!");
-  //   } catch (error) {
-  //     console.error("Error occurred while downloading data:", error);
-  //     alert("Failed to download data. Please try again.");
-  //   }
-  // };
 
   return (
     <div>
