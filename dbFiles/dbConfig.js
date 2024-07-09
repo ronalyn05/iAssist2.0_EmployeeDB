@@ -1,7 +1,7 @@
 const config = {
-    user: 'root',
-    password: '123',
-    server: '10.160.54.14',
+    user: 'admin',
+    password: '12345',
+    server: '10.160.54.11',
     database: 'EmployeeManagementDB',
     options:{
         trustServerCertificate: true,
